@@ -131,6 +131,15 @@ data class LayoutPreferences(
     val onboardingCompleted: Boolean = false,
     val activePresetId: String? = null,
     val appThemeMode: String = "system", // system | light | dark
+    val layoutViewOrientation: String = "vertical", // vertical | horizontal
+    val showWallpaperInPreview: Boolean = true,
+    val activeWallpaperSource: String = "device", // device | gallery | preset:<id>
+)
+
+data class ObservedSnapshotResult(
+    val pages: List<StudioPage>,
+    val sourceLabel: String,
+    val isLiveSnapshot: Boolean,
 )
 
 data class HomeStudioConfig(

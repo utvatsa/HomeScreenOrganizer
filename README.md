@@ -14,18 +14,17 @@ Open the app's **Setup** tab (or run `.venv/bin/homescreenorganizer checklist`) 
 4. **Samsung Smart Switch** (`com.sec.android.easyMover`, free) — Optional safety backup for launcher/device state.
 5. **KWGT Kustom Widget Maker** (`org.kustom.widget`, Free edition) — Strictly optional; built-in `Category Header` & `Wallpaper Spacer` widgets run standalone.
 
-## Features (`v0.3.0`)
+## Features (`v0.4.0`)
 
-- **Studio Tab (Presets, Suggested Suites, Custom Builder & Layout Manager)**:
-  - **First-Use Collection Presets**: Choose **Brief** (3 layouts), **Balanced** (6 layouts), or **Detailed** (8–12+ layouts covering all recognized installed apps).
-  - **Intelligent Suite Suggestions**: Pick a suite (such as *Payments Suite*, *Banking Suites*, *AI Suite*, *Productivity*, *Most Used*, *Travel*, *Health*, *Entertainment*, etc.). HomeScreenOrganizer filters its bundled **offline LLM-curated app catalog** (`app_catalog.json`) + `PackageManager` strictly to **apps already installed on your phone**, then lets you check/uncheck apps or folders, rename folders, check/uncheck inside folders, or break down folders into solo icons.
-  - **Custom Layout Builder & Max Apps Per Layout**: Create completely custom pages with a header widget + chosen installed apps/folders, configure global or per-page max items per layout (`4..16`, `8` one-hand default), reposition/edit headers (`Row 0–2`, alignment), reorder/remove pages, and realign slots cleanly.
-- **Catalog Tab (Custom App Recognition)**:
-  - Search all installed apps and tag any custom/work/regional app with categories and a suite folder name so future suggestions and presets include it automatically.
-- **Settings & Appearance Tab (Light / Dark Mode + Widget Header Theme)**:
-  - Switch between **System Default**, **Light Mode**, and **Dark Mode** across the entire organizer UI, customize live transparent header typography, and open Widget & Export tools.
-- **Setup Checklist & Built-In Guide Tabs**:
-  - Automated companion sub-app checklist + optional `UsageStats` Top-8 ranking, and an interactive step-by-step guide.
+- **One UI 9 Floating Dock & Hamburger Drawer**:
+  - Floating bottom dock houses **Studio**, **Current** (exact live layout viewer), and **Catalog**; the left Hamburger menu (`≡`) provides **Settings** (Light / Dark / System mode + Header Theme + Wallpaper), **Setup Checklist**, **User Guide**, and **About** (`utvatsa/HomeScreenOrganizer`).
+  - On first load, **HomeScreenOrganizer** checks core requirements and routes directly to **Setup** if any required companion item is missing.
+- **Studio & Current Layout Viewers (Vertical Stack / Horizontal Pages + Wallpaper)**:
+  - Switch cleanly between stacked **Vertical Stack** cards and swipeable **Horizontal Pages** with interactive dot indicators.
+  - Toggle **Wallpaper: On/Off** in previews and open the **One UI Home Screen Wallpaper Picker** (Gallery + curated One UI presets + contrast dim slider; sets **unlocked Home Screen ONLY** and never modifies lock screen).
+  - View the exact live **Current** One UI Home snapshot (including folders & widgets via `.venv/bin/homescreenorganizer sync-app --live` or JSON import), tap folders to inspect contents, or clone into **Studio**.
+- **Studio Builder & Custom App Catalog**:
+  - **Brief / Balanced / Detailed Presets**, `+ Suggested` suites with folder check/uncheck/rename/breakdown, `+ Custom` builder, global/per-page Max Apps (`4..16`), and Catalog app tagging.
 - **Host ADB Automation & Interactive Web Editor**:
   - `.venv/bin/homescreenorganizer most-used ... --apply-live` adds a left-of-home `Most Used` page (`order: 0`) while keeping `Daily Essentials` as Default Home.
   - `.venv/bin/homescreenorganizer serve` launches the local browser layout editor (`http://127.0.0.1:8765`).

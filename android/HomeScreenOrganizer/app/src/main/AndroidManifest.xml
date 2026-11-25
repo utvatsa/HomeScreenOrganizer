@@ -6,6 +6,8 @@
     <uses-permission
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
+    <!-- Unlocked home screen wallpaper application only (FLAG_SYSTEM; lock screen is never modified). -->
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
 
     <!-- Narrowly scoped package & launcher visibility queries only; no QUERY_ALL_PACKAGES, INTERNET, or storage permissions. -->
     <queries>

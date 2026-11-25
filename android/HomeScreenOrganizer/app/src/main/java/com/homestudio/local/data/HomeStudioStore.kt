@@ -80,6 +80,51 @@ class HomeStudioStore(private val context: Context) {
         return parsed
     }
 
+    private val observedSnapshotFile: File
+        get() = File(context.filesDir, "observed_layout_snapshot.json")
+
+    private val externalObservedSnapshotFile: File?
+        get() = context.getExternalFilesDir(null)?.let { File(it, "observed_layout_snapshot.json") }
+
+    fun saveObservedSnapshotJson(rawJson: String): ObservedSnapshotResult {
+        observedSnapshotFile.writeText(rawJson, Charsets.UTF_8)
+        return loadObservedSnapshot(load())
+    }
+
+    fun loadObservedSnapshot(cfg: HomeStudioConfig): ObservedSnapshotResult {
+        val candidates = listOfNotNull(observedSnapshotFile, externalObservedSnapshotFile)
+            .filter { it.exists() && it.length() > 0 }
+            .sortedByDescending { it.lastModified() }
+        for (snapFile in candidates) {
+            val parsed = runCatching {
+                parseObservedSnapshotJson(snapFile.readText(Charsets.UTF_8), cfg)
+            }.getOrNull()
+            if (parsed != null && parsed.pages.isNotEmpty()) {
+                return parsed
+            }
+        }
+        // Fallback: surface currently bound Category Header widgets directly if snapshot hasn't been synced yet
+        val widgetPages = cfg.widgets.values.sortedBy { it.appWidgetId }.mapIndexed { idx, w ->
+            StudioPage(
+                id = w.categoryId ?: "widget-${w.appWidgetId}",
+                title = w.title,
+                order = idx,
+                isDefaultHome = idx == 0,
+                header = HeaderPlacement(enabled = true, row = 0, column = 0, columnSpan = cfg.preferences.gridColumns, rowSpan = 1),
+                boundWidgetId = w.appWidgetId,
+            )
+        }
+        return ObservedSnapshotResult(
+            pages = widgetPages,
+            sourceLabel = if (widgetPages.isNotEmpty()) {
+                "Showing ${widgetPages.size} live bound header widgets (sync snapshot via ADB or Import JSON for full icon grid)"
+            } else {
+                "No live launcher snapshot synced yet"
+            },
+            isLiveSnapshot = false,
+        )
+    }
+
     companion object {
         fun toJson(cfg: HomeStudioConfig): String {
             val root = JSONObject()
@@ -144,6 +189,9 @@ class HomeStudioStore(private val context: Context) {
                 put("onboardingCompleted", p.onboardingCompleted)
                 if (p.activePresetId != null) put("activePresetId", p.activePresetId)
                 put("appThemeMode", p.appThemeMode)
+                put("layoutViewOrientation", p.layoutViewOrientation)
+                put("showWallpaperInPreview", p.showWallpaperInPreview)
+                put("activeWallpaperSource", p.activeWallpaperSource)
             })
 
             val pagesArr = JSONArray()
@@ -279,6 +327,9 @@ class HomeStudioStore(private val context: Context) {
                     onboardingCompleted = prefObj.optBoolean("onboardingCompleted", false),
                     activePresetId = prefObj.optString("activePresetId").takeIf { prefObj.has("activePresetId") && !prefObj.isNull("activePresetId") },
                     appThemeMode = prefObj.optString("appThemeMode", "system").ifBlank { "system" },
+                    layoutViewOrientation = prefObj.optString("layoutViewOrientation", "vertical").ifBlank { "vertical" },
+                    showWallpaperInPreview = prefObj.optBoolean("showWallpaperInPreview", true),
+                    activeWallpaperSource = prefObj.optString("activeWallpaperSource", "device").ifBlank { "device" },
                 )
             } else {
                 LayoutPreferences()
@@ -468,6 +519,127 @@ class HomeStudioStore(private val context: Context) {
             }
             root.put("pages", pagesArr)
             return root.toString(2)
+        }
+
+        /** Parse an observed One UI dump JSON (`observed-layout.json`) or `DesiredLayout` JSON into previewable pages. */
+        fun parseObservedSnapshotJson(rawJson: String, cfg: HomeStudioConfig): ObservedSnapshotResult {
+            val root = JSONObject(rawJson)
+            val pagesArr = root.optJSONArray("pages") ?: JSONArray()
+            val oneUiSettings = root.optString("oneUiSettings", "")
+            val defaultIdx = Regex("""Default Home Page\s*:\s*(\d+)""")
+                .find(oneUiSettings)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
+
+            val pages = mutableListOf<StudioPage>()
+            for (i in 0 until pagesArr.length()) {
+                val po = pagesArr.getJSONObject(i)
+                val pageIdx = if (po.has("page_index")) po.optInt("page_index", i) else po.optInt("order", i)
+                val itemsArr = po.optJSONArray("items") ?: JSONArray()
+
+                var headerRow = 0
+                var headerEnabled = false
+                var headerTitle: String? = po.optString("title").takeIf { po.has("title") && !po.isNull("title") }
+                var boundWidgetId: Int? = null
+                val slots = mutableListOf<LayoutSlotItem>()
+
+                for (j in 0 until itemsArr.length()) {
+                    val io = itemsArr.getJSONObject(j)
+                    val type = io.optString("type", "app")
+                    val x = if (io.has("position_x")) io.optInt("position_x", 0) else io.optJSONObject("position")?.optInt("column", 0) ?: 0
+                    val y = if (io.has("position_y")) io.optInt("position_y", 4) else io.optJSONObject("position")?.optInt("row", 4) ?: 4
+                    val comp = io.optString("component", "")
+                    val pkg = io.optString("packageName").ifBlank { comp.substringBefore('/') }
+                    val cls = io.optString("activityName").ifBlank { comp.substringAfter('/', "") }
+
+                    if (type == "widget") {
+                        val wid = io.optInt("app_widget_id", -1)
+                        if (comp.contains("CategoryHeaderWidgetProvider")) {
+                            headerEnabled = true
+                            headerRow = y.coerceIn(0, 5)
+                            if (wid > 0) {
+                                boundWidgetId = wid
+                                headerTitle = cfg.widgets[wid]?.title ?: headerTitle ?: "Page ${i + 1}"
+                            }
+                        } else if (comp.contains("Weather") || wid > 0) {
+                            // Surface other widgets (e.g., Weather) cleanly in grid preview
+                            slots.add(
+                                LayoutSlotItem(
+                                    id = "obs:$pageIdx:w:$j",
+                                    type = "widget",
+                                    label = if (comp.contains("Weather")) "Weather" else pkg.substringAfterLast('.'),
+                                    packageName = pkg,
+                                    row = y,
+                                    column = x,
+                                ),
+                            )
+                        }
+                    } else if (type == "folder") {
+                        val chArr = io.optJSONArray("children") ?: JSONArray()
+                        val children = mutableListOf<LayoutFolderChild>()
+                        for (k in 0 until chArr.length()) {
+                            val co = chArr.getJSONObject(k)
+                            val cComp = co.optString("component", "")
+                            val cPkg = co.optString("packageName").ifBlank { cComp.substringBefore('/') }
+                            val cCls = co.optString("activityName").ifBlank { cComp.substringAfter('/', "") }
+                            children.add(
+                                LayoutFolderChild(
+                                    packageName = cPkg,
+                                    activityName = cCls,
+                                    label = co.optString("title", co.optString("label", cPkg)),
+                                ),
+                            )
+                        }
+                        slots.add(
+                            LayoutSlotItem(
+                                id = "obs:$pageIdx:f:$j",
+                                type = "folder",
+                                label = io.optString("title", "Folder"),
+                                children = children,
+                                row = y,
+                                column = x,
+                            ),
+                        )
+                    } else if (type == "app") {
+                        slots.add(
+                            LayoutSlotItem(
+                                id = "obs:$pageIdx:a:$j",
+                                type = "app",
+                                label = io.optString("title", pkg),
+                                packageName = pkg,
+                                activityName = cls,
+                                row = y,
+                                column = x,
+                            ),
+                        )
+                    }
+                }
+
+                val isWp = !headerEnabled && slots.isEmpty()
+                val title = headerTitle ?: if (isWp) "Wallpaper" else "Page ${pageIdx + 1}"
+                pages.add(
+                    StudioPage(
+                        id = po.optString("id", "live-$pageIdx"),
+                        title = title,
+                        order = pageIdx,
+                        isDefaultHome = po.optBoolean("isDefaultHome", pageIdx == defaultIdx),
+                        isWallpaperPage = isWp,
+                        header = HeaderPlacement(
+                            enabled = headerEnabled,
+                            row = headerRow,
+                            column = 0,
+                            columnSpan = cfg.preferences.gridColumns,
+                            rowSpan = 1,
+                        ),
+                        items = slots,
+                        boundWidgetId = boundWidgetId,
+                    ),
+                )
+            }
+
+            return ObservedSnapshotResult(
+                pages = pages.sortedBy { it.order },
+                sourceLabel = "Exact One UI Home snapshot (${pages.size} live pages)",
+                isLiveSnapshot = true,
+            )
         }
     }
 }
