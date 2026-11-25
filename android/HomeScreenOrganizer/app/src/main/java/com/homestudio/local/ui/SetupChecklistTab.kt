@@ -8,6 +8,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,11 +33,14 @@ import com.homestudio.local.diagnostics.CheckStatus
 import com.homestudio.local.diagnostics.ChecklistAction
 import com.homestudio.local.diagnostics.ReadinessReport
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SetupChecklistTab(
     report: ReadinessReport,
+    isFirstRunGate: Boolean = false,
     onAction: (ChecklistAction) -> Unit,
     onOpenGuide: () -> Unit,
+    onContinueToStudio: (() -> Unit)? = null,
 ) {
     val p = LocalStudioPalette.current
     val ratio = if (report.requiredItems.isEmpty()) 1f else {
@@ -46,6 +51,31 @@ fun SetupChecklistTab(
         animationSpec = tween(420),
         label = "readyProgress",
     )
+
+    if (isFirstRunGate && !report.allRequiredReady) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = p.warningSurface),
+            border = BorderStroke(1.dp, p.warningText.copy(alpha = 0.5f)),
+        ) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = "Setup Required Before First Use",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = p.warningText,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "Some required Android companion items below are missing or inactive. Resolve them for full One UI Home compatibility, or review the Guide.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = p.textPrimary,
+                )
+            }
+        }
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth().animateContentSize(),
@@ -87,12 +117,20 @@ fun SetupChecklistTab(
                 style = MaterialTheme.typography.bodySmall,
                 color = p.textSecondary,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 Button(onClick = { onAction(ChecklistAction.REFRESH) }) {
                     Text("Re-check")
                 }
                 OutlinedButton(onClick = onOpenGuide) {
                     Text("Read Guide")
+                }
+                if (onContinueToStudio != null) {
+                    OutlinedButton(onClick = onContinueToStudio) {
+                        Text(if (report.allRequiredReady) "Open Studio" else "Skip to Studio")
+                    }
                 }
             }
         }

@@ -49,5 +49,16 @@ This project is a **production environment** for the user's primary daily phone 
 
 ## Privacy & Git Hygiene
 
-- Keep local Git only; NEVER push to remote without explicit user authorization.
-- `.gitignore` MUST exclude: `config/private-device.json`, `backups/`, `checkpoints/`, `screenshots/`, `inventory/`, `assets/wallpaper/`, `assets/previews/`, `reports/`, `logs/`, `dist/`, `.venv/`, `*.keystore`, `*.jks`, `local.properties`, and any device serials or personal data.
+- Keep local Git only unless explicitly instructed to push to the configured personal GitHub repository (`utvatsa/HomeScreenOrganizer`).
+- `.gitignore` MUST exclude: `config/private-device.json`, `backups/`, `checkpoints/`, `screenshots/`, `inventory/`, `assets/wallpaper/`, `assets/previews/`, `reports/`, `logs/`, `dist/`, `.venv/`, `*.keystore`, `*.jks`, `local.properties`, `android/HomeScreenOrganizer/signing/`, and any device serials or personal data.
+
+---
+
+## Git Branch, PR, Merge & Release Workflow (All Chats)
+
+Every code or configuration change in this project MUST follow this workflow cleanly across all chats:
+1. **Create a new branch** from `main` (`feature/<name>` or `fix/<name>`).
+2. **Implement & Debug (Automated + Manual)**: Run unit tests (`./gradlew testDebugUnitTest`, `.venv/bin/pytest -q`), build signed release APK (`assembleRelease`), and test manually on the target physical device.
+3. **Commit & Raise PR**: Stage only safe project files (never private configs/keystores/inventories), verify secret scan (`gitleaks`), push the branch, and raise a PR into `main`.
+4. **Merge Without Deleting Branches**: Merge the PR into `main` (`gh pr merge --merge`) and **NEVER delete feature/fix branches** (do not pass `--delete-branch`; restore older branches if missing).
+5. **Pull `main`, Tag & Release**: `git checkout main && git pull origin main`, create an annotated minor/patch release tag (`v0.X.0`), push the tag, publish a GitHub Release with `HomeScreenOrganizer-<version>-release.apk` + `.sha256`, and install the released APK onto the phone (`adb install -r`).

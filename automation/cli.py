@@ -148,6 +148,48 @@ def sync_headers(config_path: str) -> None:
     click.echo(json.dumps({"syncedHeaders": len(applier.widget_mappings)}, indent=2))
 
 
+@main.command("sync-app")
+@click.option("--live", is_flag=True, help="Dump live launcher state before pushing snapshot & wallpaper into app.")
+def sync_app(live: bool) -> None:
+    """Sync observed-layout snapshot and current home wallpaper into HomeScreenOrganizer app."""
+    import subprocess
+    adb = _get_adb()
+    adb.preflight(require_launcher=False)
+    obs_path = Path("config/observed-layout.json")
+    if live or not obs_path.exists():
+        snap = parse_oneui_dump(adb.shell("dumpsys activity provider com.sec.android.app.launcher"))
+        observed = {
+            "commonSettings": snap.common_settings,
+            "oneUiSettings": snap.oneui_settings,
+            "homeUpSettings": snap.homeup_settings,
+            "pages": snap.pages,
+        }
+        obs_path.write_text(json.dumps(observed, indent=2) + "\n", encoding="utf-8")
+    adb.shell("mkdir -p /sdcard/Android/data/com.homestudio.local/files")
+    subprocess.run(
+        [
+            adb.target.adb_path, "-s", adb.target.serial,
+            "push", str(obs_path), "/sdcard/Android/data/com.homestudio.local/files/observed_layout_snapshot.json",
+        ],
+        check=True,
+        timeout=15.0,
+    )
+    wp_synced = False
+    for wp_candidate in (Path("assets/wallpaper/reconstructed_wallpaper.png"), Path("assets/wallpaper/candidate_01.jpg")):
+        if wp_candidate.exists():
+            subprocess.run(
+                [
+                    adb.target.adb_path, "-s", adb.target.serial,
+                    "push", str(wp_candidate), "/sdcard/Android/data/com.homestudio.local/files/home_wallpaper_device.png",
+                ],
+                check=True,
+                timeout=15.0,
+            )
+            wp_synced = True
+            break
+    click.echo(json.dumps({"syncedSnapshot": True, "syncedWallpaper": wp_synced}, indent=2))
+
+
 @main.command()
 def status() -> None:
     """Report current layout & checkpoint status."""

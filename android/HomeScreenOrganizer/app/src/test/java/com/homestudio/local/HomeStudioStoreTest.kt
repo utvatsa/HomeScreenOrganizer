@@ -33,7 +33,15 @@ class HomeStudioStoreTest {
                     fontSizeSp = 22f,
                 ),
             ),
-            preferences = LayoutPreferences(defaultMaxItemsPerPage = 6, onboardingCompleted = true, activePresetId = "balanced"),
+            preferences = LayoutPreferences(
+                defaultMaxItemsPerPage = 6,
+                onboardingCompleted = true,
+                activePresetId = "balanced",
+                appThemeMode = "light",
+                layoutViewOrientation = "horizontal",
+                showWallpaperInPreview = false,
+                activeWallpaperSource = "preset:oneui-bloom",
+            ),
             pages = listOf(
                 StudioPage(
                     id = "payments",
@@ -67,6 +75,10 @@ class HomeStudioStoreTest {
         assertFalse(restored.widgets[42]?.inheritTheme ?: true)
         assertEquals(22f, restored.widgets[42]?.fontSizeSp)
         assertEquals(6, restored.preferences.defaultMaxItemsPerPage)
+        assertEquals("light", restored.preferences.appThemeMode)
+        assertEquals("horizontal", restored.preferences.layoutViewOrientation)
+        assertFalse(restored.preferences.showWallpaperInPreview)
+        assertEquals("preset:oneui-bloom", restored.preferences.activeWallpaperSource)
         assertEquals(1, restored.pages.size)
         assertEquals(1, restored.pages[0].header.row)
         assertEquals("center", restored.pages[0].header.alignmentOverride)
@@ -132,5 +144,43 @@ class HomeStudioStoreTest {
         assertTrue(brief.size in 2..3)
         val detailed = LayoutSuggestionEngine.generateCollectionPreset(PresetKind.DETAILED, installed, emptyList(), maxItemsPerPage = 8)
         assertTrue(detailed.any { it.id == "payments" })
+    }
+
+    @Test
+    fun parseObservedSnapshotReadsOneUiPagesWidgetsAndFolders() {
+        val cfg = HomeStudioConfig(
+            widgets = mapOf(145 to WidgetInstanceConfig(appWidgetId = 145, categoryId = "most-used", title = "Most Used")),
+        )
+        val observedRaw = """
+            {
+              "oneUiSettings": "Default Home Page : 1 | Home Grid : 4 X 6",
+              "pages": [
+                {
+                  "page_index": 0,
+                  "items": [
+                    {"type": "widget", "component": "com.homestudio.local/.widget.CategoryHeaderWidgetProvider", "app_widget_id": 145, "position_x": 0, "position_y": 0},
+                    {"type": "app", "title": "Rapido", "component": "com.rapido.passenger/.Main", "position_x": 0, "position_y": 4}
+                  ]
+                },
+                {
+                  "page_index": 1,
+                  "items": [
+                    {"type": "folder", "title": "Google Suite", "position_x": 3, "position_y": 5, "children": [
+                      {"title": "Gmail", "component": "com.google.android.gm/.Main"}
+                    ]}
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+        val snap = HomeStudioStore.parseObservedSnapshotJson(observedRaw, cfg)
+        assertTrue(snap.isLiveSnapshot)
+        assertEquals(2, snap.pages.size)
+        assertEquals("Most Used", snap.pages[0].title)
+        assertFalse(snap.pages[0].isDefaultHome)
+        assertTrue(snap.pages[1].isDefaultHome)
+        assertEquals(1, snap.pages[1].items.size)
+        assertEquals("Google Suite", snap.pages[1].items[0].label)
+        assertEquals(1, snap.pages[1].items[0].children.size)
     }
 }

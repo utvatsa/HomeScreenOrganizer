@@ -1,5 +1,6 @@
 package com.homestudio.local.ui
 
+import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.spring
@@ -71,10 +72,12 @@ fun LayoutsStudioTab(
     installedApps: List<InstalledAppInfo>,
     usageTopApps: List<UsageAppInfo>,
     boundHeaderIds: IntArray,
+    wallpaperBitmap: Bitmap?,
     onUpdateConfig: (HomeStudioConfig, String) -> Unit,
     onPinHeaderForPage: (StudioPage) -> Unit,
     onExportHostLayout: () -> Unit,
     onOpenTools: () -> Unit,
+    onOpenWallpaperPicker: (StudioPage?) -> Unit,
 ) {
     var showPresets by remember(config.pages.isEmpty()) { mutableStateOf(config.pages.isEmpty()) }
     var showTemplatePicker by remember { mutableStateOf(false) }
@@ -242,110 +245,61 @@ fun LayoutsStudioTab(
     }
 
     val sortedPages = config.pages.sortedBy { it.order }
-    sortedPages.forEachIndexed { idx, pg ->
-        val cap = pg.effectiveMaxItems(globalMax)
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .animateContentSize(spring(dampingRatio = 0.8f, stiffness = 360f)),
-            colors = CardDefaults.cardColors(containerColor = p.card),
-            border = BorderStroke(1.dp, if (pg.isDefaultHome) p.accent.copy(alpha = 0.55f) else p.border),
-        ) {
-            Column(
-                modifier = Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "${idx + 1}. ${pg.title}",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = p.textPrimary,
-                            )
-                            if (pg.isDefaultHome) {
-                                Box(
-                                    modifier = Modifier
-                                        .background(p.positiveSurface, RoundedCornerShape(999.dp))
-                                        .padding(horizontal = 7.dp, vertical = 2.dp),
-                                ) {
-                                    Text("Home", style = MaterialTheme.typography.labelSmall, color = p.positiveText, fontWeight = FontWeight.SemiBold)
-                                }
-                            }
-                        }
-                        Text(
-                            text = if (pg.isWallpaperPage) {
-                                "Clean Wallpaper Page"
-                            } else {
-                                "${pg.items.size}/$cap items | Header: " +
-                                    (if (pg.header.enabled) "Row ${pg.header.row} (${pg.header.alignmentOverride ?: config.globalTheme.alignment})" else "Hidden") +
-                                    (pg.boundWidgetId?.let { " | Widget #$it" } ?: "")
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = p.textMuted,
-                        )
-                    }
-                }
+    if (sortedPages.isNotEmpty()) {
+        LayoutViewerControlBar(
+            orientation = config.preferences.layoutViewOrientation,
+            showWallpaper = config.preferences.showWallpaperInPreview,
+            onChangeOrientation = { ori ->
+                onUpdateConfig(
+                    config.copy(preferences = config.preferences.copy(layoutViewOrientation = ori)),
+                    "Switched Studio viewer to ${ori.replaceFirstChar { it.uppercase() }} mode.",
+                )
+            },
+            onToggleWallpaper = { enabled ->
+                onUpdateConfig(
+                    config.copy(preferences = config.preferences.copy(showWallpaperInPreview = enabled)),
+                    if (enabled) "Showing Studio previews with wallpaper." else "Showing clean Studio backdrop without wallpaper.",
+                )
+            },
+            onOpenWallpaperPicker = {
+                onOpenWallpaperPicker(sortedPages.firstOrNull { it.isDefaultHome } ?: sortedPages.firstOrNull())
+            },
+        )
+    }
 
-                // Mini 4x6 Dark Wallpaper Grid Preview
-                MiniPhoneGridPreview(page = pg, config = config)
-
-                // Full Layout Management Controls
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (idx > 0) {
-                        OutlinedButton(onClick = {
-                            val swapped = swapPages(sortedPages, idx, idx - 1)
-                            onUpdateConfig(
-                                LayoutSuggestionEngine.syncCategoriesAndWidgetsFromPages(config.copy(pages = swapped)),
-                                "Moved '${pg.title}' up.",
-                            )
-                        }) { Text("↑") }
-                    }
-                    if (idx < sortedPages.lastIndex) {
-                        OutlinedButton(onClick = {
-                            val swapped = swapPages(sortedPages, idx, idx + 1)
-                            onUpdateConfig(
-                                LayoutSuggestionEngine.syncCategoriesAndWidgetsFromPages(config.copy(pages = swapped)),
-                                "Moved '${pg.title}' down.",
-                            )
-                        }) { Text("↓") }
-                    }
-                    if (!pg.isDefaultHome && !pg.isWallpaperPage) {
-                        OutlinedButton(onClick = {
-                            val updated = sortedPages.map { it.copy(isDefaultHome = it.id == pg.id) }
-                            onUpdateConfig(config.copy(pages = updated), "Set '${pg.title}' as Default Home.")
-                        }) { Text("Set Home") }
-                    }
-                    if (!pg.isWallpaperPage) {
-                        OutlinedButton(onClick = { editingHeaderPage = pg }) { Text("Edit Header") }
-                        OutlinedButton(onClick = {
-                            editingExistingPageId = pg.id
-                            activeSuggestionDraft = pageToDraft(pg, installedApps)
-                        }) { Text("Edit Items") }
-                        OutlinedButton(onClick = {
-                            val packed = LayoutSuggestionEngine.realignPageItems(
-                                items = pg.items,
-                                columns = cols,
-                                rows = rows,
-                                maxItems = cap,
-                                headerRow = if (pg.header.enabled) pg.header.row else -1,
-                            )
-                            val updated = sortedPages.map { if (it.id == pg.id) it.copy(items = packed) else it }
-                            onUpdateConfig(config.copy(pages = updated), "Realigned '${pg.title}'.")
-                        }) { Text("Realign") }
-                    }
-                    TextButton(onClick = {
-                        val remaining = LayoutSuggestionEngine.normalizePageOrders(sortedPages.filterNot { it.id == pg.id })
-                        val synced = LayoutSuggestionEngine.syncCategoriesAndWidgetsFromPages(config.copy(pages = remaining))
-                        onUpdateConfig(synced, "Removed '${pg.title}'.")
-                    }) { Text("Remove", color = p.danger) }
-                }
-            }
+    if (config.preferences.layoutViewOrientation == "horizontal" && sortedPages.isNotEmpty()) {
+        HorizontalPagesDeck(pages = sortedPages) { idx, pg ->
+            StudioPageCard(
+                idx = idx,
+                pg = pg,
+                sortedPages = sortedPages,
+                config = config,
+                installedApps = installedApps,
+                wallpaperBitmap = wallpaperBitmap,
+                onUpdateConfig = onUpdateConfig,
+                onEditHeader = { editingHeaderPage = pg },
+                onEditItems = {
+                    editingExistingPageId = pg.id
+                    activeSuggestionDraft = pageToDraft(pg, installedApps)
+                },
+            )
+        }
+    } else {
+        sortedPages.forEachIndexed { idx, pg ->
+            StudioPageCard(
+                idx = idx,
+                pg = pg,
+                sortedPages = sortedPages,
+                config = config,
+                installedApps = installedApps,
+                wallpaperBitmap = wallpaperBitmap,
+                onUpdateConfig = onUpdateConfig,
+                onEditHeader = { editingHeaderPage = pg },
+                onEditItems = {
+                    editingExistingPageId = pg.id
+                    activeSuggestionDraft = pageToDraft(pg, installedApps)
+                },
+            )
         }
     }
 
@@ -473,105 +427,125 @@ fun LayoutsStudioTab(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun MiniPhoneGridPreview(page: StudioPage, config: HomeStudioConfig) {
+private fun StudioPageCard(
+    idx: Int,
+    pg: StudioPage,
+    sortedPages: List<StudioPage>,
+    config: HomeStudioConfig,
+    installedApps: List<InstalledAppInfo>,
+    wallpaperBitmap: Bitmap?,
+    onUpdateConfig: (HomeStudioConfig, String) -> Unit,
+    onEditHeader: () -> Unit,
+    onEditItems: () -> Unit,
+) {
     val p = LocalStudioPalette.current
-    val rows = config.preferences.gridRows
+    val globalMax = config.preferences.defaultMaxItemsPerPage
     val cols = config.preferences.gridColumns
-    val alignment = page.header.alignmentOverride ?: config.globalTheme.alignment
-    Column(
+    val rows = config.preferences.gridRows
+    val cap = pg.effectiveMaxItems(globalMax)
+
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .background(p.wallpaperPreviewBg, RoundedCornerShape(14.dp))
-            .border(1.dp, p.wallpaperPreviewBorder, RoundedCornerShape(14.dp))
-            .padding(8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+            .animateContentSize(spring(dampingRatio = 0.8f, stiffness = 360f)),
+        colors = CardDefaults.cardColors(containerColor = p.card),
+        border = BorderStroke(1.dp, if (pg.isDefaultHome) p.accent.copy(alpha = 0.55f) else p.border),
     ) {
-        for (r in 0 until rows) {
-            if (page.header.enabled && !page.isWallpaperPage && page.header.row == r) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(34.dp)
-                        .border(1.dp, p.secondaryAccent.copy(alpha = 0.25f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 8.dp),
-                    contentAlignment = when (alignment) {
-                        "center" -> Alignment.Center
-                        "end" -> Alignment.CenterEnd
-                        else -> Alignment.CenterStart
-                    },
-                ) {
-                    Text(
-                        text = page.title,
-                        color = Color.White.copy(alpha = config.globalTheme.opacity),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Light,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            } else {
-                val rowItems = page.items.filter { it.row == r }
-                if (rowItems.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxWidth().height(if (page.isWallpaperPage && r == 3) 26.dp else 14.dp)) {
-                        if (page.isWallpaperPage && r == 3) {
-                            Text(
-                                text = "Clean Wallpaper",
-                                modifier = Modifier.align(Alignment.Center),
-                                color = Color(0xFF94A3B8),
-                                fontSize = 11.sp,
-                            )
-                        }
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        for (c in 0 until cols) {
-                            val item = rowItems.firstOrNull { it.column == c }
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "${idx + 1}. ${pg.title}",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = p.textPrimary,
+                        )
+                        if (pg.isDefaultHome) {
                             Box(
-                                modifier = Modifier.weight(1f).padding(vertical = 2.dp),
-                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .background(p.positiveSurface, RoundedCornerShape(999.dp))
+                                    .padding(horizontal = 7.dp, vertical = 2.dp),
                             ) {
-                                if (item != null) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        if (item.type == "folder") {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(34.dp)
-                                                    .background(p.slotCellBg, RoundedCornerShape(9.dp))
-                                                    .border(1.dp, Color(0xFF475569), RoundedCornerShape(9.dp)),
-                                                contentAlignment = Alignment.Center,
-                                            ) {
-                                                Text(
-                                                    text = "${item.children.size}",
-                                                    color = Color(0xFFAEC6FF),
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                )
-                                            }
-                                        } else {
-                                            InstalledAppIcon(
-                                                packageName = item.packageName,
-                                                fallbackLabel = item.label,
-                                                size = 32.dp,
-                                            )
-                                        }
-                                        Text(
-                                            text = item.label,
-                                            color = Color(0xFFE2E8F0),
-                                            fontSize = 9.sp,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            textAlign = TextAlign.Center,
-                                        )
-                                    }
-                                }
+                                Text("Home", style = MaterialTheme.typography.labelSmall, color = p.positiveText, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
+                    Text(
+                        text = if (pg.isWallpaperPage) {
+                            "Clean Wallpaper Page"
+                        } else {
+                            "${pg.items.size}/$cap items | Header: " +
+                                (if (pg.header.enabled) "Row ${pg.header.row} (${pg.header.alignmentOverride ?: config.globalTheme.alignment})" else "Hidden") +
+                                (pg.boundWidgetId?.let { " | Widget #$it" } ?: "")
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = p.textMuted,
+                    )
                 }
+            }
+
+            MiniPhoneGridPreview(
+                page = pg,
+                config = config,
+                wallpaperBitmap = wallpaperBitmap,
+                showWallpaper = config.preferences.showWallpaperInPreview,
+            )
+
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (idx > 0) {
+                    OutlinedButton(onClick = {
+                        val swapped = swapPages(sortedPages, idx, idx - 1)
+                        onUpdateConfig(
+                            LayoutSuggestionEngine.syncCategoriesAndWidgetsFromPages(config.copy(pages = swapped)),
+                            "Moved '${pg.title}' up.",
+                        )
+                    }) { Text("↑") }
+                }
+                if (idx < sortedPages.lastIndex) {
+                    OutlinedButton(onClick = {
+                        val swapped = swapPages(sortedPages, idx, idx + 1)
+                        onUpdateConfig(
+                            LayoutSuggestionEngine.syncCategoriesAndWidgetsFromPages(config.copy(pages = swapped)),
+                            "Moved '${pg.title}' down.",
+                        )
+                    }) { Text("↓") }
+                }
+                if (!pg.isDefaultHome && !pg.isWallpaperPage) {
+                    OutlinedButton(onClick = {
+                        val updated = sortedPages.map { it.copy(isDefaultHome = it.id == pg.id) }
+                        onUpdateConfig(config.copy(pages = updated), "Set '${pg.title}' as Default Home.")
+                    }) { Text("Set Home") }
+                }
+                if (!pg.isWallpaperPage) {
+                    OutlinedButton(onClick = onEditHeader) { Text("Edit Header") }
+                    OutlinedButton(onClick = onEditItems) { Text("Edit Items") }
+                    OutlinedButton(onClick = {
+                        val packed = LayoutSuggestionEngine.realignPageItems(
+                            items = pg.items,
+                            columns = cols,
+                            rows = rows,
+                            maxItems = cap,
+                            headerRow = if (pg.header.enabled) pg.header.row else -1,
+                        )
+                        val updated = sortedPages.map { if (it.id == pg.id) it.copy(items = packed) else it }
+                        onUpdateConfig(config.copy(pages = updated), "Realigned '${pg.title}'.")
+                    }) { Text("Realign") }
+                }
+                TextButton(onClick = {
+                    val remaining = LayoutSuggestionEngine.normalizePageOrders(sortedPages.filterNot { it.id == pg.id })
+                    val synced = LayoutSuggestionEngine.syncCategoriesAndWidgetsFromPages(config.copy(pages = remaining))
+                    onUpdateConfig(synced, "Removed '${pg.title}'.")
+                }) { Text("Remove", color = p.danger) }
             }
         }
     }
