@@ -65,8 +65,8 @@ class GestureEngine:
         fg = self.adb.get_foreground_info()
         if "GoogleDiscoverWindow" in str(fg["current_focus"]):
             return 0, 14
-        out = self.adb.shell("dumpsys activity top | grep -A 75 'workspace_page_indicator'", check=False)
-        markers = re.findall(r"PageIndicatorMarker\{[^\}]+\s+([^\s\}]+)\s+\d+,\d+-\d+,\d+\}", out)
+        out = self.adb.shell("dumpsys activity top | grep -A 120 'workspace_page_indicator'", check=False)
+        markers = re.findall(r"PageIndicatorMarker\{[^\}]+\s+([^\s\}]+)\s+\d+,\d+-\d+,\d+[^\}]*\}", out)
         selected = [i for i, flags in enumerate(markers) if "S" in flags]
         return (selected[0] if selected else -1), len(markers)
 
