@@ -1,4 +1,4 @@
-"""Local interactive HTML layout editor and HTTP backend for Home Studio."""
+"""Local interactive HTML layout editor and HTTP backend for HomeScreenOrganizer."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ def build_editor_html(
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Android Home Studio — Interactive Layout Editor</title>
+<title>HomeScreenOrganizer — Interactive Layout Editor</title>
 <style>
   * {{ box-sizing: border-box; }}
   body {{ margin: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; background: #0c0d11; color: #eceef4; }}
@@ -64,7 +64,7 @@ def build_editor_html(
 <body>
 <header>
   <div>
-    <h1>Android Home Studio — Interactive Layout Editor</h1>
+    <h1>HomeScreenOrganizer — Interactive Layout Editor</h1>
     <div id="status" class="status-bar">Loaded layout &amp; 356-app catalog.</div>
   </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -437,7 +437,7 @@ async function saveToServer() {{
     const r = await apiPost('/api/save', layout);
     setStatus(r.message || 'Saved!', !r.ok);
   }} catch {{
-    setStatus('Run `.venv/bin/home-studio serve` to enable direct Save & Apply from browser, or use Export JSON.', true);
+    setStatus('Run `.venv/bin/homescreenorganizer serve` to enable direct Save & Apply from browser, or use Export JSON.', true);
   }}
 }}
 
@@ -446,7 +446,7 @@ async function dryRunServer() {{
     const r = await apiPost('/api/dry-run', layout);
     setStatus(r.message || 'Dry-run ok', !r.ok);
   }} catch {{
-    setStatus('Start local server with `.venv/bin/home-studio serve` for live Dry Run.', true);
+    setStatus('Start local server with `.venv/bin/homescreenorganizer serve` for live Dry Run.', true);
   }}
 }}
 
@@ -455,7 +455,7 @@ async function applyToPhone() {{
     const r = await apiPost('/api/apply', layout);
     setStatus(r.message || 'Applied!', !r.ok);
   }} catch {{
-    setStatus('Start local server with `.venv/bin/home-studio serve` for one-click Apply to Phone.', true);
+    setStatus('Start local server with `.venv/bin/homescreenorganizer serve` for one-click Apply to Phone.', true);
   }}
 }}
 
@@ -479,7 +479,7 @@ def write_static_editor(out_path: Path = Path("reports/layout-editor.html")) -> 
 
 
 def serve_editor(host: str = "127.0.0.1", port: int = 8765) -> None:
-    """Serve interactive Home Studio layout editor with live Save / Dry-Run / Apply."""
+    """Serve interactive HomeScreenOrganizer layout editor with live Save / Dry-Run / Apply."""
     write_static_editor()
 
     class Handler(BaseHTTPRequestHandler):
@@ -530,5 +530,5 @@ def serve_editor(host: str = "127.0.0.1", port: int = 8765) -> None:
                 self._send_json({"ok": False, "message": str(exc)}, 400)
 
     server = ThreadingHTTPServer((host, port), Handler)
-    print(f"Home Studio Interactive Editor serving at http://{host}:{port}")
+    print(f"HomeScreenOrganizer Interactive Editor serving at http://{host}:{port}")
     server.serve_forever()

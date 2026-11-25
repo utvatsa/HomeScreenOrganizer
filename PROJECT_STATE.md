@@ -14,7 +14,7 @@
 - Phase 4: Samsung Home Up Immediate backup created (`11/25/2026 03:17:30`) + logical backup manifest (`backups/backup-manifest.json`, 30 SHA-256 checksums).
 - Phase 5: Active wallpaper (`LayeredWallpaperService`) preserved unchanged; screenshot-derived preview background built for mockups.
 - Phase 6: 356 launcher-visible app inventory + PNG icons collected (`inventory/applications.json`, `inventory/applications.csv`).
-- Phase 7–9: Home Studio APK (`com.homestudio.local` v0.1.0, `CategoryHeaderWidgetProvider`, `WallpaperPlaceholderWidgetProvider`, `WallpaperSpacer1x1Provider`) built, unit-tested, emulator-tested (`homestudio_test`), upgraded via `adb install -r`, and launcher capability tests passed.
+- Phase 7–9: HomeScreenOrganizer APK (`com.homestudio.local` internal ID, `CategoryHeaderWidgetProvider`, `WallpaperPlaceholderWidgetProvider`, `WallpaperSpacer1x1Provider`) built, unit-tested, upgraded via `adb install -r`, and launcher capability tests passed.
 - Phase 10–15: 16-page `4x6` one-hand 8-icon-max + suite-folder design planned and approved (`config/approved-layout.json`).
 - Phase 16–19: Full live execution completed on `SM-S721B` (`16` pages built, `15` transparent headers bound, Weather widget preserved at `(0,1)` on Page 1, all `48` temporary spacers removed cleanly, `Default Home Page : 0`, `0` layout mismatches, `0` user apps removed/disabled).
 - Phase 20–21: Final screenshots (`screenshots/after/page_01..16.png`), `assets/previews/final_contact_sheet.png`, refreshed `reports/layout-editor.html`, `reports/verification-report.html`, updated docs, and verification test runs completed.

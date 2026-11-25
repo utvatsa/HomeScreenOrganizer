@@ -1,4 +1,4 @@
-"""CLI entrypoint for Android Home Studio."""
+"""CLI entrypoint for HomeScreenOrganizer."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def _get_adb() -> AdbClient:
 
 @click.group()
 def main() -> None:
-    """Android Home Studio CLI."""
+    """HomeScreenOrganizer CLI."""
 
 
 @main.command()

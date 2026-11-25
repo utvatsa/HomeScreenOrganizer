@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Android Home Studio** (`android-home-studio`) is an autonomous, declarative Android home screen management, design, and automation system targeting a primary personal Samsung Galaxy S24 FE (`SM-S721B`) running Samsung One UI Home.
+**HomeScreenOrganizer** is an autonomous, declarative Android home screen management, design, and automation system targeting a primary personal Samsung Galaxy S24 FE (`SM-S721B`) running Samsung One UI Home.
 
 This project is a **production environment** for the user's primary daily phone containing banking, financial, communication, and personal applications.
 
@@ -42,7 +42,7 @@ This project is a **production environment** for the user's primary daily phone 
 2. Verify ADB connectivity and confirm the target device matches the private local serial in `config/private-device.json` (never commit this file).
 3. Check device lock state (`dumpsys window` / `dumpsys power`). If locked, pause and ask the user to unlock.
 4. Load `config/approved-layout.json` (or `config/desired-layout.json` if pre-approval) and `logs/execution-journal.jsonl`.
-5. Run read-only inspection (`home-studio inspect`) to reconcile `config/observed-layout.json` with the actual launcher state before executing the next pending operation.
+5. Run read-only inspection (`homescreenorganizer inspect`) to reconcile `config/observed-layout.json` with the actual launcher state before executing the next pending operation.
 6. Never blindly re-run completed operations; verify idempotency first.
 
 ---

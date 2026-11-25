@@ -95,7 +95,7 @@ def generate_approval_html(
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Android Home Studio — Consolidated Design Approval Package</title>
+<title>HomeScreenOrganizer — Consolidated Design Approval Package</title>
 <style>
   body {{ font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; background: #0d0e12; color: #eceef4; margin: 0; padding: 28px; line-height: 1.5; }}
   h1, h2, h3 {{ font-weight: 500; margin-top: 0; }}
@@ -118,7 +118,7 @@ def generate_approval_html(
 </head>
 <body>
 <div class="container">
-  <h1>Android Home Studio — Consolidated Design Approval Package</h1>
+  <h1>HomeScreenOrganizer — Consolidated Design Approval Package</h1>
   <p class="muted">Device: {html.escape(device_profile.get('model',''))} | Android {html.escape(str(device_profile.get('androidRelease','')))} (SDK {device_profile.get('sdk')}) | One UI Home {html.escape(str(device_profile.get('companionPackages',{}).get('oneUiHome',{}).get('versionName','')))}</p>
 
   <div class="grid-2">
@@ -217,7 +217,7 @@ def generate_verification_html(
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Android Home Studio — Final Verification Report</title>
+<title>HomeScreenOrganizer — Final Verification Report</title>
 <style>
   body {{ font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; background: #0d0e12; color: #eceef4; margin: 0; padding: 28px; line-height: 1.5; }}
   .container {{ max-width: 1320px; margin: 0 auto; }}
@@ -231,7 +231,7 @@ def generate_verification_html(
 </head>
 <body>
 <div class="container">
-  <h1>Android Home Studio — Final Execution &amp; Verification Report</h1>
+  <h1>HomeScreenOrganizer — Final Execution &amp; Verification Report</h1>
   <p class="muted">Target: {html.escape(device_profile.get('model','SM-S721B'))} | Android {html.escape(str(device_profile.get('androidRelease','17')))} | One UI Home {html.escape(str(device_profile.get('companionPackages',{}).get('oneUiHome',{}).get('versionName','')))}</p>
   <div class="card">
     <h2>Verification Summary</h2>
@@ -241,7 +241,7 @@ def generate_verification_html(
       <li>Category Header Widgets Bound: <strong>15 / 15</strong></li>
       <li>User Packages Removed or Uninstalled: <strong>{len(removed_packages)}</strong> (353 u0 + 1 u95 baseline apps preserved)</li>
       <li>Reboot Persistence Test: <em>Not tested (device not rebooted unattended)</em>; widget IDs persisted in <code>home_studio_config.json</code> and re-tested across app force-stop/refresh.</li>
-      <li>Interactive Editor: Open <a href="layout-editor.html" style="color:#8ab4f8;">layout-editor.html</a> or run <code>.venv/bin/home-studio serve</code></li>
+      <li>Interactive Editor: Open <a href="layout-editor.html" style="color:#8ab4f8;">layout-editor.html</a> or run <code>.venv/bin/homescreenorganizer serve</code></li>
     </ul>
   </div>
   <div class="card sheet">

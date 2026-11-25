@@ -1,52 +1,36 @@
-# Maintenance & Usage Guide (v0.2.0)
+# Maintenance & Usage Guide (v0.3.0)
 
-## 1. Using the Home Studio Android App
+> **Android Only:** **HomeScreenOrganizer** (`com.homestudio.local`) targets **Android 12+ (API 31+)** on **Samsung One UI Home**.
 
-Open **Home Studio** on your phone:
+## 1. Companion Sub-Apps Checklist
 
-1. **Checklist Tab (`Setup`)**:
-   - Verifies **Samsung One UI Home** (installed + active launcher), **Good Lock**, **Home Up**, **Smart Switch**, **KWGT (optional)**, **AppWidget Pinning Support**, bound **Category Headers**, and optional **Usage Access** for live **Top-8 Most Used** detection.
-   - Tap **Grant Usage Access** (optional) to let the app rank your top 8 most-used apps directly on-device.
-2. **Guide Tab**:
-   - Step-by-step reference covering Home Up backups, one-hand bottom-row placement, global vs. per-widget header styling, and troubleshooting.
-3. **Headers Tab**:
-   - Add or view category definitions synced with your `Category Header` widgets.
-4. **Theme Tab**:
-   - Adjust Font Size, Opacity, Font Weight, Alignment, and Subtle Separator across all inheriting widgets in real time.
-5. **Tools Tab**:
-   - Pin new `Category Header`, `Wallpaper Spacer 4x1`, or `Wallpaper Spacer 1x1` widgets, edit per-widget overrides, or **Export / Import JSON** backups via Android Storage Access Framework (`SAF`).
+Before organizing or applying layouts, open **HomeScreenOrganizer -> Setup** (or run `.venv/bin/homescreenorganizer checklist`):
+- **Samsung One UI Home** (`com.sec.android.app.launcher`) — Must be active default home app.
+- **Samsung Good Lock** (`com.samsung.android.goodlock`) & **Samsung Home Up** (`com.samsung.android.app.homestar`) — Create an Immediate Backup inside Home Up before major restructuring.
+- **Samsung Smart Switch** (`com.sec.android.easyMover`) — Optional full backup utility.
+- **KWGT Free** (`org.kustom.widget`) — Optional; native Category Header widgets work without KWGT.
 
-## 2. Left-of-Home `Most Used` Page
+## 2. Using the HomeScreenOrganizer App (`v0.3.0`)
 
-Keep `Daily Essentials` as your Default Home Page (`isDefaultHome: true`) and place `Most Used` at `order: 0` (one swipe left from Home):
+1. **Studio Tab (First-Use Presets & Layout Builder)**:
+   - Pick **Brief (3 layouts)**, **Balanced (6 layouts)**, or **Detailed (Full All-Apps)** to generate a complete layout from **installed apps only**.
+   - Adjust **Max Apps / Items Per Layout** globally (`4`, `6`, `8 One-Hand`, `10`, `12`, `16`) or per individual page.
+   - Tap **+ Suggested** (e.g., *Payments Suite*) to preview detected installed apps and folders: check/uncheck solo apps or folders, rename folders inline, check/uncheck apps inside folders, or tap **Break Down Folder**.
+   - Tap **+ Custom** to build a page from scratch with a custom header, row/alignment placement, and custom-grouped folders.
+   - Use **Up/Down**, **Set Home**, **Edit Header** (reposition row `0..2`, alignment, bind widget ID), **Edit Items**, **Realign**, and **Remove** on any page card, or **Export Layout JSON** to apply over ADB.
+2. **Catalog Tab (Custom Apps)**:
+   - Tag any installed app with custom categories (or add new categories) and a suite folder name.
+3. **Settings Tab**:
+   - Switch between **System Default**, **Light Mode**, and **Dark Mode**, and customize font size, opacity, weight, alignment, and subtle separator across all inheriting widgets.
+4. **Setup & Guide Tabs**:
+   - Verify companion sub-apps, optionally grant **Usage Access** for live top-8 foreground ranking, and read the Android-only setup guide.
 
-```bash
-# Build/update the Most Used leftmost page using live `dumpsys usagestats` + 8 pinned apps
-.venv/bin/home-studio most-used \
-  --app Rapido --app BHIM --app smoketrack --app PennyWise \
-  --app "YT Music" --app YouTube --app Darwinbox --app Teams
-
-# Add `--apply-live` when the phone is connected over ADB to apply immediately:
-.venv/bin/home-studio most-used \
-  --app Rapido --app BHIM --app smoketrack --app PennyWise \
-  --app "YT Music" --app YouTube --app Darwinbox --app Teams --apply-live
-```
-
-## 3. Interactive HTML Layout Editor
-
-1. **Live Server Mode (Save, Dry Run, and Apply from browser)**:
-   ```bash
-   .venv/bin/home-studio serve
-   # Open http://127.0.0.1:8765
-   ```
-2. **Standalone HTML**: Open `reports/layout-editor.html` in any browser, edit pages/slots/theme, click **Export JSON**, and apply with `.venv/bin/home-studio apply --config config/desired-layout.json`.
-
-## 4. Common CLI Workflows
+## 3. Host CLI & Interactive Web Editor
 
 ```bash
-.venv/bin/home-studio doctor            # ADB & lock-state health check
-.venv/bin/home-studio checklist         # Companion app & readiness check
-.venv/bin/home-studio inspect           # Refresh config/observed-layout.json
-.venv/bin/home-studio verify --live     # Verify live phone matches desired layout
-.venv/bin/home-studio sync-headers      # Push updated titles/theme to widgets
+.venv/bin/homescreenorganizer doctor            # ADB & lock-state health check
+.venv/bin/homescreenorganizer checklist         # Companion sub-apps check
+.venv/bin/homescreenorganizer serve             # Local browser editor (http://127.0.0.1:8765)
+.venv/bin/homescreenorganizer most-used --app Rapido --app BHIM --app smoketrack --app PennyWise --app "YT Music" --app YouTube --app Darwinbox --app Teams --apply-live
+.venv/bin/homescreenorganizer verify --live     # Verify live phone matches desired layout
 ```
