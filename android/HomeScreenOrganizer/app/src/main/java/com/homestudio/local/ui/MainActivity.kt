@@ -67,7 +67,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -103,6 +105,7 @@ import com.homestudio.local.widget.HeaderRenderer
 import com.homestudio.local.widget.WallpaperPlaceholderWidgetProvider
 import com.homestudio.local.widget.WallpaperSpacer1x1Provider
 import com.homestudio.local.widget.WidgetConfigActivity
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class OrganizerDest(val title: String) {
@@ -215,6 +218,29 @@ private fun HomeOrganizerApp(
     var showToolsDialog by remember { mutableStateOf(false) }
     var showWallpaperDialog by remember { mutableStateOf(false) }
     var wallpaperPreviewPage by remember { mutableStateOf<StudioPage?>(null) }
+    var showSplash by remember { mutableStateOf(true) }
+    var showTutorial by remember { mutableStateOf(false) }
+    var tutorialStepIndex by remember { mutableIntStateOf(0) }
+    val tutorialRegistry = remember { TutorialTargetRegistry() }
+    val mainScrollState = rememberScrollState()
+
+    LaunchedEffect(Unit) {
+        delay(850L)
+        showSplash = false
+        if (!config.preferences.hasCompletedTutorial) {
+            tutorialStepIndex = 0
+            showTutorial = true
+        }
+    }
+
+    LaunchedEffect(showTutorial, tutorialStepIndex) {
+        if (showTutorial && tutorialStepIndex in VERBOSE_TUTORIAL_STEPS.indices) {
+            val step = VERBOSE_TUTORIAL_STEPS[tutorialStepIndex]
+            drawerState.close()
+            dest = step.dest
+            mainScrollState.animateScrollTo(if (step.scrollToBottom) 760 else 0)
+        }
+    }
     var statusMsg by remember {
         mutableStateOf(
             if (!initialReadiness.allRequiredReady) {
@@ -316,6 +342,7 @@ private fun HomeOrganizerApp(
         }
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -405,6 +432,17 @@ private fun HomeOrganizerApp(
                         },
                     )
                     DrawerNavItem(
+                        label = "Interactive Tutorial",
+                        badge = "Tour",
+                        badgePositive = true,
+                        selected = showTutorial,
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            tutorialStepIndex = 0
+                            showTutorial = true
+                        },
+                    )
+                    DrawerNavItem(
                         label = "About App",
                         badge = "✨",
                         selected = dest == OrganizerDest.ABOUT,
@@ -427,7 +465,7 @@ private fun HomeOrganizerApp(
                     .fillMaxSize()
                     .statusBarsPadding()
                     .padding(horizontal = 16.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(mainScrollState),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Spacer(modifier = Modifier.height(6.dp))
@@ -441,6 +479,7 @@ private fun HomeOrganizerApp(
                     Surface(
                         modifier = Modifier
                             .size(42.dp)
+                            .tutorialTarget(tutorialRegistry, "hamburger_btn")
                             .clip(CircleShape)
                             .clickable { scope.launch { drawerState.open() } },
                         shape = CircleShape,
@@ -486,6 +525,7 @@ private fun HomeOrganizerApp(
                     }
                     Surface(
                         modifier = Modifier
+                            .tutorialTarget(tutorialRegistry, "theme_pill")
                             .clip(RoundedCornerShape(999.dp))
                             .clickable {
                                 val nextMode = when (config.preferences.appThemeMode) {
@@ -584,6 +624,7 @@ private fun HomeOrganizerApp(
                                     wallpaperPreviewPage = page
                                     showWallpaperDialog = true
                                 },
+                                tutorialRegistry = tutorialRegistry,
                             )
 
                             OrganizerDest.CURRENT -> CurrentLayoutTab(
@@ -626,6 +667,7 @@ private fun HomeOrganizerApp(
                                     dest = OrganizerDest.STUDIO
                                     statusMsg = "Loaded ${cloned.pages.size} current pages into Studio for editing."
                                 },
+                                tutorialRegistry = tutorialRegistry,
                             )
 
                             OrganizerDest.CATALOG -> CustomCatalogTab(
@@ -644,6 +686,7 @@ private fun HomeOrganizerApp(
                                     installedApps = AppCatalogEngine.discoverInstalledApps(context, catalog, nextCustoms)
                                     statusMsg = "Saved custom categories for ${customDef.displayName}."
                                 },
+                                tutorialRegistry = tutorialRegistry,
                             )
 
                             OrganizerDest.SETTINGS -> SettingsAndThemeTab(
@@ -715,9 +758,48 @@ private fun HomeOrganizerApp(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .tutorialTarget(tutorialRegistry, "dock_root"),
             )
         }
+    }
+
+    if (showTutorial && !showSplash) {
+        TutorialCoachmarkOverlay(
+            stepIndex = tutorialStepIndex,
+            steps = VERBOSE_TUTORIAL_STEPS,
+            registry = tutorialRegistry,
+            onPrevious = {
+                if (tutorialStepIndex > 0) tutorialStepIndex--
+            },
+            onNext = {
+                if (tutorialStepIndex < VERBOSE_TUTORIAL_STEPS.lastIndex) {
+                    tutorialStepIndex++
+                } else {
+                    val updated = config.copy(
+                        preferences = config.preferences.copy(hasCompletedTutorial = true),
+                    )
+                    store.save(updated)
+                    onConfigChange(updated)
+                    showTutorial = false
+                    dest = if (!readiness.allRequiredReady) OrganizerDest.SETUP else OrganizerDest.STUDIO
+                    statusMsg = "Interactive tutorial finished!"
+                }
+            },
+            onSkip = {
+                val updated = config.copy(
+                    preferences = config.preferences.copy(hasCompletedTutorial = true),
+                )
+                store.save(updated)
+                onConfigChange(updated)
+                showTutorial = false
+                dest = if (!readiness.allRequiredReady) OrganizerDest.SETUP else OrganizerDest.STUDIO
+                statusMsg = "Tutorial skipped — replay anytime via ≡ Interactive Tutorial."
+            },
+        )
+    }
+
+    BrandSplashOverlay(visible = showSplash)
     }
 
     if (showWallpaperDialog) {

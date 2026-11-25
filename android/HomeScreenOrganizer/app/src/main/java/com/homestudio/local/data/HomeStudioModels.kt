@@ -134,6 +134,7 @@ data class LayoutPreferences(
     val layoutViewOrientation: String = "vertical", // vertical | horizontal
     val showWallpaperInPreview: Boolean = true,
     val activeWallpaperSource: String = "device", // device | gallery | preset:<id>
+    val hasCompletedTutorial: Boolean = false,
 )
 
 data class ObservedSnapshotResult(

@@ -52,6 +52,7 @@ fun CurrentLayoutTab(
     onImportObservedJson: () -> Unit,
     onRefreshSnapshot: () -> Unit,
     onCloneToStudio: (List<StudioPage>) -> Unit,
+    tutorialRegistry: TutorialTargetRegistry? = null,
 ) {
     val p = LocalStudioPalette.current
     var inspectedFolder by remember { mutableStateOf<LayoutSlotItem?>(null) }
@@ -60,7 +61,10 @@ fun CurrentLayoutTab(
     val showWallpaper = config.preferences.showWallpaperInPreview
 
     Card(
-        modifier = Modifier.fillMaxWidth().animateContentSize(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .tutorialTarget(tutorialRegistry, "current_summary")
+            .animateContentSize(),
         colors = CardDefaults.cardColors(containerColor = p.cardTint),
         border = BorderStroke(1.dp, p.border),
     ) {
@@ -70,13 +74,14 @@ fun CurrentLayoutTab(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = "Current Phone Layout (${snapshot.pages.size} pages)",
                     style = MaterialTheme.typography.titleMedium,
                     color = p.textPrimary,
+                    modifier = Modifier.weight(1f),
                 )
                 Box(
                     modifier = Modifier
@@ -84,12 +89,14 @@ fun CurrentLayoutTab(
                             if (snapshot.isLiveSnapshot) p.positiveSurface else p.warningSurface,
                             RoundedCornerShape(999.dp),
                         )
-                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                        .padding(horizontal = 9.dp, vertical = 3.dp),
                 ) {
                     Text(
-                        text = if (snapshot.isLiveSnapshot) "Exact Snapshot" else "Widgets Only",
+                        text = if (snapshot.isLiveSnapshot) "Live Snapshot" else "Widgets Only",
                         style = MaterialTheme.typography.labelSmall,
                         color = if (snapshot.isLiveSnapshot) p.positiveText else p.warningText,
+                        maxLines = 1,
+                        softWrap = false,
                     )
                 }
             }

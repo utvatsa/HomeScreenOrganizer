@@ -46,6 +46,7 @@ fun CustomCatalogTab(
     installedApps: List<InstalledAppInfo>,
     categories: List<CategoryDefinition>,
     onSaveCustomApp: (CustomAppDefinition, CategoryDefinition?) -> Unit,
+    tutorialRegistry: TutorialTargetRegistry? = null,
 ) {
     val p = LocalStudioPalette.current
     var query by remember { mutableStateOf("") }
@@ -63,7 +64,9 @@ fun CustomCatalogTab(
         value = query,
         onValueChange = { query = it },
         label = { Text("Search installed apps or packages") },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .tutorialTarget(tutorialRegistry, "catalog_search"),
         singleLine = true,
     )
 

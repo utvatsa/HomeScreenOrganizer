@@ -68,10 +68,14 @@ fun LayoutViewerControlBar(
     onChangeOrientation: (String) -> Unit,
     onToggleWallpaper: (Boolean) -> Unit,
     onOpenWallpaperPicker: () -> Unit,
+    tutorialRegistry: TutorialTargetRegistry? = null,
 ) {
     val p = LocalStudioPalette.current
     Card(
-        modifier = Modifier.fillMaxWidth().animateContentSize(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .tutorialTarget(tutorialRegistry, "viewer_controls")
+            .animateContentSize(),
         colors = CardDefaults.cardColors(containerColor = p.card),
         border = BorderStroke(1.dp, p.border),
     ) {
