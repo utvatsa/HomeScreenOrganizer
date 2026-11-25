@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Intent
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -48,12 +49,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.homestudio.local.BuildConfig
 import com.homestudio.local.data.CategoryDefinition
 import com.homestudio.local.data.HomeStudioConfig
 import com.homestudio.local.data.HomeStudioStore
 import com.homestudio.local.data.WidgetInstanceConfig
+import com.homestudio.local.diagnostics.ChecklistAction
+import com.homestudio.local.diagnostics.ReadinessChecker
 import com.homestudio.local.inventory.InventoryExporter
 import com.homestudio.local.widget.CategoryHeaderWidgetProvider
 import com.homestudio.local.widget.HeaderRenderer
@@ -105,10 +109,11 @@ private fun HomeStudioApp(store: HomeStudioStore) {
     val context = LocalContext.current
     var tab by remember { mutableIntStateOf(0) }
     var config by remember { mutableStateOf(store.load()) }
-    var statusMsg by remember { mutableStateOf("Ready") }
+    var readiness by remember { mutableStateOf(ReadinessChecker.inspect(context)) }
+    var statusMsg by remember { mutableStateOf("Offline & Ready (v${BuildConfig.VERSION_NAME})") }
 
     val importLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
+        ActivityResultContracts.OpenDocument(),
     ) { uri ->
         if (uri != null) {
             runCatching {
@@ -117,6 +122,7 @@ private fun HomeStudioApp(store: HomeStudioStore) {
                 if (text != null) {
                     config = store.importJson(text)
                     CategoryHeaderWidgetProvider.updateAll(context)
+                    readiness = ReadinessChecker.inspect(context)
                     statusMsg = "Imported configuration and refreshed widgets."
                 }
             }.onFailure { err ->
@@ -126,7 +132,7 @@ private fun HomeStudioApp(store: HomeStudioStore) {
     }
 
     val exportLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json")
+        ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
         if (uri != null) {
             runCatching {
@@ -144,10 +150,15 @@ private fun HomeStudioApp(store: HomeStudioStore) {
     Scaffold(
         bottomBar = {
             NavigationBar {
-                listOf("Categories", "Theme", "Widgets", "Tools").forEachIndexed { idx, label ->
+                listOf("Checklist", "Guide", "Headers", "Theme", "Tools").forEachIndexed { idx, label ->
                     NavigationBarItem(
                         selected = tab == idx,
-                        onClick = { tab = idx },
+                        onClick = {
+                            tab = idx
+                            if (idx == 0) {
+                                readiness = ReadinessChecker.inspect(context)
+                            }
+                        },
                         icon = {},
                         label = { Text(label) },
                     )
@@ -163,19 +174,68 @@ private fun HomeStudioApp(store: HomeStudioStore) {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Home Studio", style = MaterialTheme.typography.headlineSmall)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Home Studio", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Medium)
+                Box(
+                    modifier = Modifier
+                        .background(Color(0xFF1F273B), RoundedCornerShape(999.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        text = "v${BuildConfig.VERSION_NAME}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFFAEC6FF),
+                    )
+                }
+            }
             Text(statusMsg, style = MaterialTheme.typography.bodySmall, color = Color(0xFFA0A0B0))
 
             when (tab) {
-                0 -> CategoriesTab(
+                0 -> SetupChecklistTab(
+                    report = readiness,
+                    onAction = { action ->
+                        when (action) {
+                            ChecklistAction.REFRESH -> {
+                                readiness = ReadinessChecker.inspect(context)
+                                statusMsg = "Checklist refreshed."
+                            }
+                            ChecklistAction.OPEN_HOME_SETTINGS -> {
+                                runCatching {
+                                    context.startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
+                                }.onFailure { statusMsg = "Open Android Settings > Apps > Default apps > Home app." }
+                            }
+                            ChecklistAction.OPEN_USAGE_ACCESS -> {
+                                runCatching {
+                                    context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                                }.onFailure { statusMsg = "Open Android Settings > Apps > Special access > Usage data access." }
+                            }
+                            ChecklistAction.PIN_HEADER_WIDGET -> {
+                                val mgr = AppWidgetManager.getInstance(context)
+                                if (mgr.isRequestPinAppWidgetSupported) {
+                                    mgr.requestPinAppWidget(ComponentName(context, CategoryHeaderWidgetProvider::class.java), null, null)
+                                    statusMsg = "Requested pin Category Header widget."
+                                }
+                            }
+                            ChecklistAction.NONE -> Unit
+                        }
+                    },
+                    onOpenGuide = { tab = 1 },
+                )
+                1 -> GuideTab()
+                2 -> CategoriesTab(
                     config = config,
                     onUpdate = { updated ->
                         store.save(updated)
                         config = updated
                         CategoryHeaderWidgetProvider.updateAll(context)
+                        statusMsg = "Categories updated."
                     },
                 )
-                1 -> ThemeTab(
+                3 -> ThemeTab(
                     config = config,
                     onUpdate = { updated ->
                         store.save(updated)
@@ -184,14 +244,16 @@ private fun HomeStudioApp(store: HomeStudioStore) {
                         statusMsg = "Global theme applied to inheriting widgets."
                     },
                 )
-                2 -> WidgetsTab(
+                4 -> WidgetsToolsTab(
                     config = config,
-                    onStatus = { statusMsg = it },
-                )
-                3 -> ToolsTab(
+                    onStatus = { msg ->
+                        statusMsg = msg
+                        readiness = ReadinessChecker.inspect(context)
+                    },
                     onReload = {
                         config = store.load()
                         CategoryHeaderWidgetProvider.updateAll(context)
+                        readiness = ReadinessChecker.inspect(context)
                         statusMsg = "Reloaded config and refreshed widgets."
                     },
                     onExportInventory = {
@@ -221,17 +283,26 @@ private fun CategoriesTab(config: HomeStudioConfig, onUpdate: (HomeStudioConfig)
             val clean = newTitle.trim()
             if (clean.isNotEmpty()) {
                 val id = clean.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
-                onUpdate(config.copy(categories = config.categories + CategoryDefinition(id, clean)))
-                newTitle = ""
+                if (id.isNotEmpty() && config.categories.none { it.id == id }) {
+                    onUpdate(config.copy(categories = config.categories + CategoryDefinition(id, clean)))
+                    newTitle = ""
+                }
             }
         }) { Text("Add") }
     }
 
     config.categories.forEach { cat ->
+        val boundCount = config.widgets.values.count { it.categoryId == cat.id || it.title == cat.title }
         Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(cat.title, style = MaterialTheme.typography.titleMedium)
-                Text("id: ${cat.id}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(cat.title, style = MaterialTheme.typography.titleMedium)
+                    Text("id: ${cat.id} | widgets: $boundCount", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                }
             }
         }
     }
@@ -245,7 +316,7 @@ private fun ThemeTab(config: HomeStudioConfig, onUpdate: (HomeStudioConfig) -> U
     val previewBmp = remember(t) {
         HeaderRenderer.render(
             context,
-            WidgetInstanceConfig(appWidgetId = 0, title = "Banking Suites"),
+            WidgetInstanceConfig(appWidgetId = 0, title = "Most Used"),
             t,
             340,
             72,
@@ -307,17 +378,25 @@ private fun ThemeTab(config: HomeStudioConfig, onUpdate: (HomeStudioConfig) -> U
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun WidgetsTab(config: HomeStudioConfig, onStatus: (String) -> Unit) {
+private fun WidgetsToolsTab(
+    config: HomeStudioConfig,
+    onStatus: (String) -> Unit,
+    onReload: () -> Unit,
+    onExportInventory: () -> Unit,
+    onImportJson: () -> Unit,
+    onExportJson: () -> Unit,
+) {
     val context = LocalContext.current
     val mgr = AppWidgetManager.getInstance(context)
     val headerIds = mgr.getAppWidgetIds(ComponentName(context, CategoryHeaderWidgetProvider::class.java))
     val placeholderIds = mgr.getAppWidgetIds(ComponentName(context, WallpaperPlaceholderWidgetProvider::class.java))
+    val spacer1x1Ids = mgr.getAppWidgetIds(ComponentName(context, WallpaperSpacer1x1Provider::class.java))
 
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(onClick = {
-            val supported = mgr.isRequestPinAppWidgetSupported
-            if (supported) {
+            if (mgr.isRequestPinAppWidgetSupported) {
                 mgr.requestPinAppWidget(ComponentName(context, CategoryHeaderWidgetProvider::class.java), null, null)
                 onStatus("Requested pin Category Header widget.")
             } else {
@@ -328,9 +407,16 @@ private fun WidgetsTab(config: HomeStudioConfig, onStatus: (String) -> Unit) {
         OutlinedButton(onClick = {
             if (mgr.isRequestPinAppWidgetSupported) {
                 mgr.requestPinAppWidget(ComponentName(context, WallpaperPlaceholderWidgetProvider::class.java), null, null)
-                onStatus("Requested pin Wallpaper Spacer.")
+                onStatus("Requested pin Wallpaper Spacer (4x1).")
             }
-        }) { Text("Pin Spacer") }
+        }) { Text("Pin Spacer 4x1") }
+
+        OutlinedButton(onClick = {
+            if (mgr.isRequestPinAppWidgetSupported) {
+                mgr.requestPinAppWidget(ComponentName(context, WallpaperSpacer1x1Provider::class.java), null, null)
+                onStatus("Requested pin Wallpaper Spacer (1x1).")
+            }
+        }) { Text("Pin Spacer 1x1") }
     }
 
     Text("Bound Header Widgets (${headerIds.size})", style = MaterialTheme.typography.titleMedium)
@@ -342,45 +428,41 @@ private fun WidgetsTab(config: HomeStudioConfig, onStatus: (String) -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(w?.title ?: "Unconfigured #$id", style = MaterialTheme.typography.titleSmall)
                     Text("appWidgetId=$id | inherit=${w?.inheritTheme ?: true}", style = MaterialTheme.typography.bodySmall)
                 }
                 OutlinedButton(onClick = {
                     context.startActivity(
                         Intent(context, WidgetConfigActivity::class.java)
-                            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+                            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id),
                     )
                 }) { Text("Edit") }
             }
         }
     }
 
-    Text("Bound Wallpaper Spacers (${placeholderIds.size})", style = MaterialTheme.typography.titleSmall)
-}
+    Text(
+        text = "Bound Spacers: ${placeholderIds.size} (4x1), ${spacer1x1Ids.size} (1x1)",
+        style = MaterialTheme.typography.bodySmall,
+        color = Color.Gray,
+    )
 
-@Composable
-private fun ToolsTab(
-    onReload: () -> Unit,
-    onExportInventory: () -> Unit,
-    onImportJson: () -> Unit,
-    onExportJson: () -> Unit,
-) {
+    Text("Backup & Utilities", style = MaterialTheme.typography.titleMedium)
     Button(onClick = onReload, modifier = Modifier.fillMaxWidth()) {
         Text("Reload Local Config & Refresh Widgets")
-    }
-    Button(onClick = onExportInventory, modifier = Modifier.fillMaxWidth()) {
-        Text("Export Launcher App Inventory & Icons")
-    }
-    OutlinedButton(onClick = onImportJson, modifier = Modifier.fillMaxWidth()) {
-        Text("Import Config JSON (SAF)")
     }
     OutlinedButton(onClick = onExportJson, modifier = Modifier.fillMaxWidth()) {
         Text("Export Config JSON (SAF)")
     }
+    OutlinedButton(onClick = onImportJson, modifier = Modifier.fillMaxWidth()) {
+        Text("Import Config JSON (SAF)")
+    }
+    OutlinedButton(onClick = onExportInventory, modifier = Modifier.fillMaxWidth()) {
+        Text("Export Launcher App Inventory & Icons")
+    }
     Text(
-        "Home Studio is a companion widget & theme manager, not a replacement launcher. " +
-            "Page reordering and app placement on Samsung One UI Home are managed via the host automation engine.",
+        text = "Home Studio v${BuildConfig.VERSION_NAME} | 100% offline, zero analytics, $0 cost.",
         style = MaterialTheme.typography.bodySmall,
         color = Color.Gray,
     )

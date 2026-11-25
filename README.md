@@ -1,30 +1,37 @@
 # Android Home Studio
 
-Autonomous, declarative Android home screen management, design, and automation system for Samsung One UI Home (`SM-S721B`).
+Autonomous, declarative Android home screen management, transparent Category Header widgets, and One UI layout automation (`v0.2.0`).
 
-## Architecture
+## Features
 
-- `automation/`: Host-side Python orchestration engine, ADB client, inventory collector, layout planner, gesture engine, live idempotent applier, local web editor, verification, and reporting.
-- `android/home-studio/`: Offline Kotlin companion APK (`com.homestudio.local`) providing transparent configurable `CategoryHeaderWidgetProvider` headings, temporary layout spacer providers (`WallpaperPlaceholderWidgetProvider`, `WallpaperSpacer1x1Provider`), and local theme/configuration management.
-- `config/`: Declarative layout configurations (`desired-layout.json`, `approved-layout.json`, `observed-layout.json`, `theme.json`, `schema.json`).
-- `docs/`: Architecture, device capabilities, safety policy, backup/recovery, maintenance, and troubleshooting guides.
+- **Home Studio Android App (`com.homestudio.local`, offline & `$0`)**:
+  - **Setup Checklist tab**: Automatically detects Samsung One UI Home (and active default home status), Good Lock, Home Up, Smart Switch, KWGT (optional), AppWidget pinning support, bound widget counts, and optional `UsageStats` top-8 Most Used readiness.
+  - **Built-in Guide tab**: Step-by-step interactive walkthrough covering backup, `4x6` one-hand layout (`<= 8` items/folders in rows `4–5`), transparent typography styling, and host automation.
+  - **Transparent `CategoryHeaderWidgetProvider` (`4x1`) & `WallpaperSpacer` (`4x1` / `1x1`)**: Crisp anti-aliased editorial page headings rendered transparently over your live/static wallpaper.
+- **Most Used Left-of-Home Page (`order: 0`)**:
+  - Pulls foreground usage stats (`dumpsys usagestats`) merged with pinned apps to build a **`Most Used`** page immediately **to the left of your Default Home page (`Daily Essentials`)**.
+- **Interactive HTML Layout Editor & CLI**:
+  - Visual browser editor (`.venv/bin/home-studio serve` -> `http://127.0.0.1:8765`, or standalone `reports/layout-editor.html`) with live Save, Dry-Run, and Apply to Phone.
 
-## Interactive Layout Editor & Customization
+## Setup Checklist Before Applying Layouts
 
-- **Recommended live workflow** (load current phone layout, rearrange items/suites/pages, rename headers, dry-run, and apply back to phone):
-  ```bash
-  .venv/bin/home-studio serve
-  # Open http://127.0.0.1:8765
-  ```
-- **Offline standalone HTML**: Open `reports/layout-editor.html` in any browser to edit, export `desired-layout.json`, and apply with `.venv/bin/home-studio apply --config config/desired-layout.json`.
+1. Install the latest signed APK from [GitHub Releases](https://github.com/utvatsa/android-home-studio/releases) (`adb install -r home-studio-0.2.0-release.apk`).
+2. Open **Home Studio -> Checklist** (or run `.venv/bin/home-studio checklist`) and verify:
+   - **Samsung One UI Home** is active (`READY`).
+   - **Samsung Good Lock + Home Up** are installed and you have created an **Immediate Backup** (`Good Lock -> Home Up -> Backup and Restore`).
+   - Optionally grant **Usage Access** if you want the Android app to display live top-8 foreground usage stats on-device.
 
-## Verification & Quick CLI
+## Quick Start (Host Automation)
 
 ```bash
-./scripts/doctor.sh
-.venv/bin/home-studio verify --live
-.venv/bin/home-studio sync-headers
-.venv/bin/home-studio editor
+./scripts/bootstrap.sh
+.venv/bin/home-studio checklist
+.venv/bin/home-studio discover
+.venv/bin/home-studio inspect
+.venv/bin/home-studio most-used --app Rapido --app BHIM --app smoketrack --app PennyWise --app "YT Music" --app YouTube --app Darwinbox --app Teams
+.venv/bin/home-studio serve
 ```
 
-See [docs/maintenance-guide.md](docs/maintenance-guide.md) and [docs/safety-policy.md](docs/safety-policy.md).
+## Safety Guarantees
+
+See [docs/safety-policy.md](docs/safety-policy.md). Zero network permissions, zero telemetry, zero app uninstallation, zero `pm clear`, and zero sensitive user data committed to Git.
