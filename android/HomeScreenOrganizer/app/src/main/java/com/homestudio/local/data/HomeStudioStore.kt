@@ -192,6 +192,7 @@ class HomeStudioStore(private val context: Context) {
                 put("layoutViewOrientation", p.layoutViewOrientation)
                 put("showWallpaperInPreview", p.showWallpaperInPreview)
                 put("activeWallpaperSource", p.activeWallpaperSource)
+                put("hasCompletedTutorial", p.hasCompletedTutorial)
             })
 
             val pagesArr = JSONArray()
@@ -330,6 +331,7 @@ class HomeStudioStore(private val context: Context) {
                     layoutViewOrientation = prefObj.optString("layoutViewOrientation", "vertical").ifBlank { "vertical" },
                     showWallpaperInPreview = prefObj.optBoolean("showWallpaperInPreview", true),
                     activeWallpaperSource = prefObj.optString("activeWallpaperSource", "device").ifBlank { "device" },
+                    hasCompletedTutorial = prefObj.optBoolean("hasCompletedTutorial", false),
                 )
             } else {
                 LayoutPreferences()

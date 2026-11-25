@@ -78,6 +78,7 @@ fun LayoutsStudioTab(
     onExportHostLayout: () -> Unit,
     onOpenTools: () -> Unit,
     onOpenWallpaperPicker: (StudioPage?) -> Unit,
+    tutorialRegistry: TutorialTargetRegistry? = null,
 ) {
     var showPresets by remember(config.pages.isEmpty()) { mutableStateOf(config.pages.isEmpty()) }
     var showTemplatePicker by remember { mutableStateOf(false) }
@@ -179,7 +180,10 @@ fun LayoutsStudioTab(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth().animateContentSize(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .tutorialTarget(tutorialRegistry, "studio_capacity")
+            .animateContentSize(),
         colors = CardDefaults.cardColors(containerColor = p.card),
         border = BorderStroke(1.dp, p.border),
     ) {
@@ -206,7 +210,11 @@ fun LayoutsStudioTab(
                     )
                 }
             }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            FlowRow(
+                modifier = Modifier.tutorialTarget(tutorialRegistry, "studio_builders"),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 Button(onClick = { showTemplatePicker = true }) { Text("+ Suggested") }
                 OutlinedButton(onClick = { showCustomBuilder = true }) { Text("+ Custom") }
                 OutlinedButton(onClick = {
@@ -264,6 +272,7 @@ fun LayoutsStudioTab(
             onOpenWallpaperPicker = {
                 onOpenWallpaperPicker(sortedPages.firstOrNull { it.isDefaultHome } ?: sortedPages.firstOrNull())
             },
+            tutorialRegistry = tutorialRegistry,
         )
     }
 

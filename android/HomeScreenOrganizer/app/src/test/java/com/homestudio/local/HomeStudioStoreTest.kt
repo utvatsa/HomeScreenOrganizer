@@ -41,6 +41,7 @@ class HomeStudioStoreTest {
                 layoutViewOrientation = "horizontal",
                 showWallpaperInPreview = false,
                 activeWallpaperSource = "preset:oneui-bloom",
+                hasCompletedTutorial = true,
             ),
             pages = listOf(
                 StudioPage(
@@ -79,6 +80,7 @@ class HomeStudioStoreTest {
         assertEquals("horizontal", restored.preferences.layoutViewOrientation)
         assertFalse(restored.preferences.showWallpaperInPreview)
         assertEquals("preset:oneui-bloom", restored.preferences.activeWallpaperSource)
+        assertTrue(restored.preferences.hasCompletedTutorial)
         assertEquals(1, restored.pages.size)
         assertEquals(1, restored.pages[0].header.row)
         assertEquals("center", restored.pages[0].header.alignmentOverride)

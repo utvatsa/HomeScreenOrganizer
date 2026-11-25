@@ -1,4 +1,4 @@
-# Maintenance & Usage Guide (v0.4.0)
+# Maintenance & Usage Guide (v0.5.0)
 
 > **Android Only:** **HomeScreenOrganizer** (`com.homestudio.local`) targets **Android 12+ (API 31+)** on **Samsung One UI Home**.
 
