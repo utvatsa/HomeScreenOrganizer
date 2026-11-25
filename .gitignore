@@ -1,0 +1,46 @@
+# Python & virtual environment
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+*.egg-info/
+
+# Private device configuration & serials
+config/private-device.json
+config/device-profile.json
+config/desired-layout.json
+config/observed-layout.json
+config/approved-layout.json
+config/user-overrides.json
+
+# Personal device data, inventories, backups, screenshots, logs
+inventory/
+backups/
+checkpoints/
+screenshots/
+assets/wallpaper/
+assets/previews/
+reports/
+logs/
+dist/
+
+# Android build & signing artifacts
+android/home-studio/.gradle/
+android/home-studio/build/
+android/home-studio/app/build/
+android/home-studio/local.properties
+android/home-studio/signing/
+*.apk
+*.aab
+*.keystore
+*.jks
+*.pem
+*.p12
+
+# OS & IDE files
+.DS_Store
+.idea/
+*.iml
+.vscode/
+local_work_notes_antigravity/
