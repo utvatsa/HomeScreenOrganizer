@@ -10,6 +10,7 @@ import android.os.Build
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
+import android.util.TypedValue
 import com.homestudio.local.data.HeaderTheme
 import com.homestudio.local.data.WidgetInstanceConfig
 import kotlin.math.max
@@ -28,7 +29,7 @@ object HeaderRenderer {
         val theme = widgetConfig.resolveTheme(globalTheme)
         val dm = context.resources.displayMetrics
         val density = dm.density
-        val scaledDensity = dm.scaledDensity
+        fun spToPx(sp: Float): Float = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, sp, dm)
 
         // Clamp bitmap size so RemoteViews stays well under Android binder transaction limits
         val safeWdp = widthDp.coerceIn(120, 460)
@@ -72,7 +73,7 @@ object HeaderRenderer {
 
         val titlePaint = TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
             this.typeface = typeface
-            this.textSize = theme.fontSizeSp * scaledDensity
+            this.textSize = spToPx(theme.fontSizeSp)
             this.color = titleColor
             this.letterSpacing = theme.letterSpacing
             if (theme.shadowEnabled) {
@@ -97,7 +98,7 @@ object HeaderRenderer {
         val subtitleLayout = subtitleText?.let { sub ->
             val subPaint = TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
                 this.typeface = Typeface.create(baseTypeface, min(400, theme.fontWeight), false)
-                this.textSize = (theme.fontSizeSp * 0.48f).coerceAtLeast(11f) * scaledDensity
+                this.textSize = spToPx((theme.fontSizeSp * 0.48f).coerceAtLeast(11f))
                 this.color = Color.argb(
                     (finalAlpha * 0.72f).roundToInt(),
                     Color.red(baseTextColor),

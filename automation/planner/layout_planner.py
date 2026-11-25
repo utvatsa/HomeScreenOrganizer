@@ -763,3 +763,66 @@ def generate_proposed_layout(
         pages=pages,
     )
     return layout, {"pages": capacity_report, "totalPages": len(pages)}
+
+
+def add_most_used_left_page(
+    layout: DesiredLayout,
+    apps: list[dict[str, Any]],
+    *,
+    pinned_refs: list[str] | None = None,
+    usage_ms_by_pkg: dict[str, int] | None = None,
+    title: str = "Most Used",
+) -> DesiredLayout:
+    """Insert or update a `Most Used` page at order=0 (left of Default Home) with top 8 apps."""
+    from automation.device.usage_stats import select_top_used_apps
+
+    chosen = select_top_used_apps(apps, usage_ms_by_pkg or {}, pinned_refs=pinned_refs, limit=8)
+    columns = layout.launcher.grid.columns
+    rows = layout.launcher.grid.rows or 6
+    bottom_rows = [max(0, rows - 2), max(1, rows - 1)]
+
+    items: list[PageItemSpec] = []
+    for idx, app in enumerate(chosen):
+        r = bottom_rows[0] if idx < columns else bottom_rows[1]
+        c = idx % columns
+        items.append(
+            PageItemSpec(
+                id=f"most-used:{app['id']}:{idx}",
+                type="app",
+                title=app["displayName"],
+                packageName=app["packageName"],
+                activityName=app["activityName"],
+                profileId=int(app.get("profileId", 0)),
+                position=PositionSpec(row=r, column=c, rowSpan=1, columnSpan=1),
+            )
+        )
+
+    most_used_page = PageSpec(
+        id="most-used",
+        title=title,
+        order=0,
+        isDefaultHome=False,
+        header=HeaderInstanceConfig(
+            enabled=True,
+            inheritTheme=True,
+            position=PositionSpec(row=0, column=0, rowSpan=1, columnSpan=columns),
+        ),
+        items=items,
+    )
+
+    remaining = [p.model_copy(deep=True) for p in sorted(layout.pages, key=lambda x: x.order) if p.id != "most-used"]
+    # Ensure Daily Essentials stays Default Home if nothing else is marked default
+    if not any(p.isDefaultHome for p in remaining):
+        for p in remaining:
+            if p.id == "daily-essentials":
+                p.isDefaultHome = True
+                break
+
+    new_pages: list[PageSpec] = [most_used_page]
+    for idx, pg in enumerate(remaining, start=1):
+        pg.order = idx
+        new_pages.append(pg)
+
+    updated = layout.model_copy(deep=True)
+    updated.pages = new_pages
+    return updated

@@ -213,3 +213,33 @@ def test_reconciliation_zero_ops_when_matched():
     assert plan_reconciliation_ops(layout, observed) == []
 
 
+def test_usage_stats_parser_and_most_used_left_page():
+    from automation.device.usage_stats import parse_dumpsys_usagestats, select_top_used_apps
+    from automation.planner.layout_planner import add_most_used_left_page
+
+    sample_dump = """
+      package=com.google.android.youtube totalTime="02:15:10" lastTimeActive="2026-11-25"
+      package=com.microsoft.teams totalTimeUsed="45:30"
+      package=com.rapido.passenger totalTime=900000
+    """
+    parsed = parse_dumpsys_usagestats(sample_dump)
+    assert parsed["com.google.android.youtube"] == ((2 * 3600) + (15 * 60) + 10) * 1000
+    assert parsed["com.microsoft.teams"] == ((45 * 60) + 30) * 1000
+    assert parsed["com.rapido.passenger"] == 900000
+
+    apps = _sample_apps()
+    classify_inventory(apps)
+    layout, _ = generate_proposed_layout(apps, columns=4, rows=6)
+    chosen = select_top_used_apps(apps, parsed, pinned_refs=["YONO SBI", "ChatGPT"], limit=4)
+    assert chosen[0]["displayName"] == "YONO SBI"
+    assert chosen[1]["displayName"] == "ChatGPT"
+
+    updated = add_most_used_left_page(layout, apps, pinned_refs=["YONO SBI", "ChatGPT"], usage_ms_by_pkg=parsed)
+    assert updated.pages[0].id == "most-used"
+    assert updated.pages[0].order == 0
+    assert updated.pages[0].isDefaultHome is False
+    daily = next(p for p in updated.pages if p.id == "daily-essentials")
+    assert daily.order == 1
+    assert daily.isDefaultHome is True
+
+

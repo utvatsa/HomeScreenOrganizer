@@ -83,6 +83,7 @@ data class HomeStudioConfig(
 ) {
     companion object {
         fun defaultCategories(): List<CategoryDefinition> = listOf(
+            CategoryDefinition("most-used", "Most Used"),
             CategoryDefinition("daily-essentials", "Daily Essentials"),
             CategoryDefinition("payments", "Payments"),
             CategoryDefinition("banking-suites", "Banking Suites"),

@@ -781,10 +781,51 @@ class LiveApplier:
         self._enter_edit_mode_safe()
         self._tap_xml_node(
             lambda n: n.attrib.get("resource-id") == "com.sec.android.app.launcher:id/default_page_button"
+            or "Not selected Default page" in n.attrib.get("content-desc", "")
         )
         time.sleep(0.5)
         self.adb.keyevent("KEYCODE_HOME")
         time.sleep(0.7)
+
+    def _move_last_page_to_first_in_edit_mode(self) -> bool:
+        """Attempt to move the newly created last page to position 0 (leftmost) in Home Edit Mode."""
+        snap = self.dump_launcher()
+        total_pages = len(snap.pages)
+        if total_pages <= 1:
+            return False
+        self.ensure_home_page(total_pages)
+        self._enter_edit_mode_safe()
+        # Drag centered last-page card leftward past page dots across Edit Mode strip
+        for _ in range(total_pages - 1):
+            self.adb.shell("input draganddrop 540 1000 60 1000 900")
+            time.sleep(0.45)
+        self.adb.keyevent("KEYCODE_HOME")
+        time.sleep(0.8)
+        after = self.dump_launcher()
+        # Verify the empty new page landed at index 0 while Weather shifted to index 1
+        return len(after.pages) == total_pages and len(after.pages[0]["items"]) == 0
+
+    def apply_left_most_used_page(self, most_used_page: PageSpec) -> dict[str, Any]:
+        """Insert/update Most Used as Page 1 (left of Daily Essentials) cleanly."""
+        self.adb.preflight(require_launcher=False)
+        snap = self.dump_launcher()
+        page0_has_weather = any(
+            it["type"] == "widget" and self.WEATHER_PROVIDER in str(it.get("component", ""))
+            for it in (snap.pages[0]["items"] if snap.pages else [])
+        )
+        if len(snap.pages) == len(self.layout.pages) - 1 and page0_has_weather:
+            # Non-destructive fast path: create empty page at end and move left to index 0
+            self.create_page()
+            moved = self._move_last_page_to_first_in_edit_mode()
+            if moved:
+                self.build_page(most_used_page)
+                self.seed_existing_widget_mappings()
+                default_pnum = next((p.order + 1 for p in self.layout.pages if p.isDefaultHome), 2)
+                self.set_default_page(default_pnum)
+                self.sync_home_studio_config()
+                return {"mode": "non_destructive_left_insert", "pages": len(self.dump_launcher().pages)}
+        # Fallback: full idempotent rebuild preserving Weather widget cleanly
+        return self.run_full_apply(clean_canvas=True)
 
     def run_full_apply(self, *, clean_canvas: bool = True) -> dict[str, Any]:
         self.adb.preflight(require_launcher=False)
@@ -804,7 +845,8 @@ class LiveApplier:
 
         removed_spacers = self.remove_all_temporary_spacers()
         self.seed_existing_widget_mappings()
-        self.set_default_page(1)
+        default_pnum = next((p.order + 1 for p in self.layout.pages if p.isDefaultHome), 1)
+        self.set_default_page(default_pnum)
         self.sync_home_studio_config()
 
         snap = self.dump_launcher()

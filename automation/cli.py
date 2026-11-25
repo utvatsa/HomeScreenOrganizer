@@ -272,6 +272,77 @@ def theme_update(font_size: float | None, opacity: float | None, font_weight: in
 
 
 @main.command()
+@click.option("--pkg", "extra_pkgs", multiple=True, help="Additional package names to verify installed.")
+def checklist(extra_pkgs: tuple[str, ...]) -> None:
+    """Verify required Samsung companion apps, Home Studio APK, and optional target packages."""
+    adb = _get_adb()
+    fg = adb.preflight(require_launcher=False)
+    profile = discover_device_profile(adb)
+    comp = profile.get("companionPackages", {})
+    checks = {
+        "oneUiHomeActive": "com.sec.android.app.launcher" in str(profile.get("activeLauncher", "")),
+        "oneUiHome": comp.get("oneUiHome", {}),
+        "goodLock": comp.get("goodLock", {}),
+        "homeUp": comp.get("homeUp", {}),
+        "smartSwitch": comp.get("smartSwitch", {}),
+        "kwgtOptional": comp.get("kwgt", {}),
+        "homeStudioApk": comp.get("homeStudio", {}),
+    }
+    pkg_status = {}
+    for pkg in extra_pkgs:
+        out = adb.shell(f"pm path {pkg}", check=False).strip()
+        pkg_status[pkg] = bool(out)
+    click.echo(json.dumps({"preflight": fg, "checklist": checks, "targetPackages": pkg_status}, indent=2))
+
+
+@main.command("most-used")
+@click.option("--app", "pinned_refs", multiple=True, help="Pinned app display name or package ID (repeat up to 8).")
+@click.option("--title", default="Most Used", help="Header title for the leftmost page.")
+@click.option("--config", "config_path", default="config/desired-layout.json", help="Layout config path to update.")
+@click.option("--apply-live", is_flag=True, help="Also apply the leftmost Most Used page live on connected phone.")
+def most_used(pinned_refs: tuple[str, ...], title: str, config_path: str, apply_live: bool) -> None:
+    """Pull system usage stats over ADB and build/update a leftmost 'Most Used' page."""
+    from automation.device.usage_stats import fetch_device_usage_stats
+    from automation.planner.layout_planner import add_most_used_left_page
+
+    p = Path(config_path)
+    layout = DesiredLayout.model_validate_json(p.read_text(encoding="utf-8"))
+    apps = json.loads(Path("inventory/applications.json").read_text(encoding="utf-8"))
+
+    usage_ms: dict[str, int] = {}
+    try:
+        adb = _get_adb()
+        adb.preflight(require_launcher=False)
+        usage_ms = fetch_device_usage_stats(adb)
+    except Exception:
+        usage_ms = {}
+
+    updated = add_most_used_left_page(
+        layout,
+        apps,
+        pinned_refs=list(pinned_refs) if pinned_refs else None,
+        usage_ms_by_pkg=usage_ms,
+        title=title,
+    )
+    validate_layout(updated, installed_ids={a["id"] for a in apps}, allow_duplicates=True)
+    p.write_text(updated.model_dump_json(indent=2) + "\n", encoding="utf-8")
+
+    result: dict[str, object] = {
+        "updatedConfig": str(p),
+        "totalPages": len(updated.pages),
+        "defaultHomePage": next((pg.title for pg in updated.pages if pg.isDefaultHome), None),
+        "mostUsedApps": [it.title for it in updated.pages[0].items if it.type == "app"],
+        "systemUsagePackagesRead": len(usage_ms),
+    }
+    if apply_live:
+        from automation.executor.live_applier import LiveApplier
+        Path("config/approved-layout.json").write_text(updated.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        applier = LiveApplier(_get_adb(), updated, {a["id"]: a for a in apps})
+        result["liveApply"] = applier.apply_left_most_used_page(updated.pages[0])
+    click.echo(json.dumps(result, indent=2))
+
+
+@main.command()
 @click.option("--port", default=8765, type=int)
 def serve(port: int) -> None:
     """Start interactive local Home Studio layout editor server."""
