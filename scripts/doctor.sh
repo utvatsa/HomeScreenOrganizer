@@ -2,4 +2,4 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-.venv/bin/home-studio doctor
+.venv/bin/homescreenorganizer doctor

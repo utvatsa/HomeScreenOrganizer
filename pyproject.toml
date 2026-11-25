@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "android-home-studio"
-version = "0.1.0"
-description = "Autonomous, declarative Android home screen management, design, and automation system for Samsung One UI Home"
+name = "HomeScreenOrganizer"
+version = "0.3.0"
+description = "HomeScreenOrganizer — Autonomous, declarative Android home screen management, design, and automation system for Samsung One UI Home"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -24,7 +24,7 @@ dev = [
 ]
 
 [project.scripts]
-home-studio = "automation.cli:main"
+homescreenorganizer = "automation.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["automation*"]

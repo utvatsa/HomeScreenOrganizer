@@ -26,11 +26,11 @@ logs/
 dist/
 
 # Android build & signing artifacts
-android/home-studio/.gradle/
-android/home-studio/build/
-android/home-studio/app/build/
-android/home-studio/local.properties
-android/home-studio/signing/
+android/HomeScreenOrganizer/.gradle/
+android/HomeScreenOrganizer/build/
+android/HomeScreenOrganizer/app/build/
+android/HomeScreenOrganizer/local.properties
+android/HomeScreenOrganizer/signing/
 *.apk
 *.aab
 *.keystore

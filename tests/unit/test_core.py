@@ -199,7 +199,7 @@ def test_web_editor_and_applier_helpers(tmp_path: Path):
     assert _norm_comp("a.b/.C") == "a.b/a.b.C"
 
     html = build_editor_html('{"pages":[]}', "[]", "{}")
-    assert "Android Home Studio" in html
+    assert "HomeScreenOrganizer" in html
     assert "Interactive Layout Editor" in html
 
 

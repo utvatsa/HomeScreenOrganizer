@@ -2,7 +2,7 @@
 
 VENV := .venv/bin
 PYTHON := $(VENV)/python
-CLI := $(VENV)/home-studio
+CLI := $(VENV)/homescreenorganizer
 
 bootstrap:
 	./scripts/bootstrap.sh
@@ -17,4 +17,4 @@ test:
 	$(VENV)/pytest -q
 
 apk:
-	cd android/home-studio && ./gradlew assembleDebug
+	cd android/HomeScreenOrganizer && ./gradlew assembleDebug

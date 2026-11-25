@@ -11,7 +11,7 @@
    - `gestures/` & `executor/`: Reusable grid-aware gesture abstraction, bounded retries, UI verification, and append-only execution journal + checkpoints.
    - `reporting/`: Local HTML reports, visual page mockups, contact sheets, and before/after comparisons.
 
-2. **Home Studio Android Companion App (`android/home-studio/`, `com.homestudio.local`)**:
+2. **HomeScreenOrganizer Android Companion App (`android/HomeScreenOrganizer/`, internal package `com.homestudio.local`)**:
    - Offline, zero-sensitive-permission Kotlin companion app (not a replacement launcher).
    - Configurable transparent Category Header `AppWidgetProvider` (`RemoteViews`) supporting global theme inheritance + per-widget (`appWidgetId`) overrides.
    - Transparent Wallpaper Placeholder `AppWidgetProvider` (zero visual footprint, non-clickable) for retaining wallpaper-only pages if needed.
