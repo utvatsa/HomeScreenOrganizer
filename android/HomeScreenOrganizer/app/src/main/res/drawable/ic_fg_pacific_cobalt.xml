@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Minimal Architectural Home Screen Frame -->
+    <path
+        android:fillColor="#10285E"
+        android:strokeColor="#5B8EE8"
+        android:strokeWidth="1.4"
+        android:pathData="M37,22 H71 A9,9 0 0 1 80,31 V77 A9,9 0 0 1 71,86 H37 A9,9 0 0 1 28,77 V31 A9,9 0 0 1 37,22 Z" />
+
+    <!-- Slim Left-Aligned Editorial Category Header Line + Hairline -->
+    <path
+        android:fillColor="#F4F8FF"
+        android:pathData="M37,29.5 H59 A2.2,2.2 0 0 1 61.2,31.7 A2.2,2.2 0 0 1 59,33.9 H37 A2.2,2.2 0 0 1 34.8,31.7 A2.2,2.2 0 0 1 37,29.5 Z" />
+    <path
+        android:strokeColor="#5B8EE8"
+        android:strokeWidth="1.1"
+        android:pathData="M35,36.8 H73" />
+
+    <!-- 2x2 Organized Grid Tiles -->
+    <path
+        android:fillColor="#DCE8FA"
+        android:pathData="M39.5,41.5 H47.5 A4.5,4.5 0 0 1 52,46 V51.5 A4.5,4.5 0 0 1 47.5,56 H39.5 A4.5,4.5 0 0 1 35,51.5 V46 A4.5,4.5 0 0 1 39.5,41.5 Z" />
+    <path
+        android:fillColor="#3B82F6"
+        android:pathData="M60.5,41.5 H68.5 A4.5,4.5 0 0 1 73,46 V51.5 A4.5,4.5 0 0 1 68.5,56 H60.5 A4.5,4.5 0 0 1 56,51.5 V46 A4.5,4.5 0 0 1 60.5,41.5 Z" />
+
+    <!-- 2x2 Folder Tile -->
+    <path
+        android:fillColor="#183675"
+        android:strokeColor="#3B82F6"
+        android:strokeWidth="1.4"
+        android:pathData="M39.5,59.5 H47.5 A4.5,4.5 0 0 1 52,64 V69.5 A4.5,4.5 0 0 1 47.5,74 H39.5 A4.5,4.5 0 0 1 35,69.5 V64 A4.5,4.5 0 0 1 39.5,59.5 Z" />
+    <path
+        android:fillColor="#E6F0FF"
+        android:pathData="M39.2,63 h3.2 v2.8 h-3.2 z M44.6,63 h3.2 v2.8 h-3.2 z M39.2,67.7 h3.2 v2.8 h-3.2 z M44.6,67.7 h3.2 v2.8 h-3.2 z" />
+
+    <!-- Bottom-Right App Tile -->
+    <path
+        android:fillColor="#93C5FD"
+        android:pathData="M60.5,59.5 H68.5 A4.5,4.5 0 0 1 73,64 V69.5 A4.5,4.5 0 0 1 68.5,74 H60.5 A4.5,4.5 0 0 1 56,69.5 V64 A4.5,4.5 0 0 1 60.5,59.5 Z" />
+
+    <!-- One UI 9 Floating Dock Pill -->
+    <path
+        android:fillColor="#E6F0FF"
+        android:pathData="M42.5,77.8 H65.5 A2.1,2.1 0 0 1 67.6,79.9 A2.1,2.1 0 0 1 65.5,82 H42.5 A2.1,2.1 0 0 1 40.4,79.9 A2.1,2.1 0 0 1 42.5,77.8 Z" />
+</vector>

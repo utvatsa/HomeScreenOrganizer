@@ -228,12 +228,14 @@ fun MiniPhoneGridPreview(
         if (showWallpaper && wallpaperBitmap != null) wallpaperBitmap.asImageBitmap() else null
     }
 
+    // Simulated Home Screen canvas intentionally stays neutral dark charcoal so layout icons,
+    // folders, widgets, and wallpaper remain vibrant and distinct regardless of app chrome theme.
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(p.wallpaperPreviewBg)
-            .border(1.dp, p.wallpaperPreviewBorder, RoundedCornerShape(18.dp)),
+            .background(Color(0xFF101318))
+            .border(1.dp, Color(0xFF2B313D), RoundedCornerShape(18.dp)),
     ) {
         if (imageBitmap != null) {
             Image(
@@ -276,7 +278,7 @@ fun MiniPhoneGridPreview(
                             )
                             .border(
                                 1.dp,
-                                if (imageBitmap != null) Color.White.copy(alpha = 0.18f) else p.secondaryAccent.copy(alpha = 0.25f),
+                                Color.White.copy(alpha = if (imageBitmap != null) 0.22f else 0.20f),
                                 RoundedCornerShape(8.dp),
                             )
                             .padding(horizontal = 8.dp),

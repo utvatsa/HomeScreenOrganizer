@@ -1,6 +1,6 @@
 # HomeScreenOrganizer
 
-Autonomous, declarative Android home screen management, intelligent layout studio, transparent Category Header widgets, and One UI layout automation (`v0.5.0`).
+Autonomous, declarative Android home screen management, intelligent layout studio, transparent Category Header widgets, and One UI layout automation (`v0.6.0`).
 
 > **Platform Note (Android Only):** **HomeScreenOrganizer** is built exclusively for **Android 12+ (API 31+)** and tailored for **Samsung One UI Home**. iOS and non-Android launchers are not supported. (The Android package retains internal ID `com.homestudio.local` for seamless upgrades with active home-screen widgets.)
 
@@ -14,7 +14,7 @@ Open the app's **Setup** tab (or run `.venv/bin/homescreenorganizer checklist`) 
 4. **Samsung Smart Switch** (`com.sec.android.easyMover`, free) — Optional safety backup for launcher/device state.
 5. **KWGT Kustom Widget Maker** (`org.kustom.widget`, Free edition) — Strictly optional; built-in `Category Header` & `Wallpaper Spacer` widgets run standalone.
 
-## Features (`v0.5.0`)
+## Features (`v0.6.0`)
 
 - **Animated Brand Splash & Verbose Live Spotlight Tutorial**:
   - Smooth zero-flash **Splash Screen** shown on every app launch.

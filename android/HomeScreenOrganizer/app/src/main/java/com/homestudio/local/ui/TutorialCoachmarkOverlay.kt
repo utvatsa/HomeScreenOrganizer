@@ -171,6 +171,7 @@ val VERBOSE_TUTORIAL_STEPS: List<TutorialStepSpec> = listOf(
 @Composable
 fun BrandSplashOverlay(
     visible: Boolean,
+    iconResId: Int = com.homestudio.local.R.mipmap.ic_launcher_warm_paper,
 ) {
     val p = LocalStudioPalette.current
     var animateIn by remember { mutableStateOf(false) }
@@ -211,16 +212,7 @@ fun BrandSplashOverlay(
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                     modifier = Modifier.padding(24.dp),
                 ) {
-                    Surface(
-                        modifier = Modifier.size(84.dp),
-                        shape = RoundedCornerShape(26.dp),
-                        color = p.accentSoft,
-                        border = BorderStroke(1.5.dp, p.accent.copy(alpha = 0.55f)),
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text("✦", fontSize = 36.sp, color = p.accent)
-                        }
-                    }
+                    AppBrandIconBadge(size = 88.dp, iconResId = iconResId)
                     Text(
                         text = "HomeScreenOrganizer",
                         style = MaterialTheme.typography.titleLarge,

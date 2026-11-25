@@ -3,11 +3,13 @@ package com.homestudio.local.ui
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -19,14 +21,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
 import com.homestudio.local.BuildConfig
+import com.homestudio.local.R
 
 private const val GITHUB_REPO_URL = "https://github.com/utvatsa/HomeScreenOrganizer"
 
@@ -42,7 +51,7 @@ private val ABOUT_FEATURES = listOf(
 )
 
 @Composable
-fun AboutTab() {
+fun AboutTab(iconResId: Int = R.mipmap.ic_launcher_warm_paper) {
     val context = LocalContext.current
     val p = LocalStudioPalette.current
 
@@ -59,15 +68,7 @@ fun AboutTab() {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(p.accentSoft),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("📱", fontSize = 24.sp)
-                }
+                AppBrandIconBadge(size = 54.dp, iconResId = iconResId)
                 Column {
                     Text(
                         text = "HomeScreenOrganizer",
@@ -158,6 +159,37 @@ fun AboutTab() {
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Open GitHub Repository")
+            }
+        }
+    }
+}
+
+@Composable
+fun AppBrandIconBadge(
+    size: Dp,
+    iconResId: Int = R.mipmap.ic_launcher_warm_paper,
+) {
+    val context = LocalContext.current
+    val p = LocalStudioPalette.current
+    val bmp = remember(iconResId) {
+        ContextCompat.getDrawable(context, iconResId)?.toBitmap(192, 192)?.asImageBitmap()
+    }
+    Surface(
+        modifier = Modifier.size(size),
+        shape = RoundedCornerShape(size * 0.28f),
+        color = p.cardElevated,
+        border = BorderStroke(1.dp, p.border),
+    ) {
+        if (bmp != null) {
+            Image(
+                bitmap = bmp,
+                contentDescription = "HomeScreenOrganizer Icon",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Box(contentAlignment = Alignment.Center) {
+                Text("✦", fontSize = (size.value * 0.42f).sp, color = p.accent)
             }
         }
     }

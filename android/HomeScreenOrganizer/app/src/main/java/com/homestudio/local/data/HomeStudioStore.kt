@@ -189,6 +189,8 @@ class HomeStudioStore(private val context: Context) {
                 put("onboardingCompleted", p.onboardingCompleted)
                 if (p.activePresetId != null) put("activePresetId", p.activePresetId)
                 put("appThemeMode", p.appThemeMode)
+                put("appColorTheme", p.appColorTheme)
+                put("syncLauncherIcon", p.syncLauncherIcon)
                 put("layoutViewOrientation", p.layoutViewOrientation)
                 put("showWallpaperInPreview", p.showWallpaperInPreview)
                 put("activeWallpaperSource", p.activeWallpaperSource)
@@ -328,6 +330,8 @@ class HomeStudioStore(private val context: Context) {
                     onboardingCompleted = prefObj.optBoolean("onboardingCompleted", false),
                     activePresetId = prefObj.optString("activePresetId").takeIf { prefObj.has("activePresetId") && !prefObj.isNull("activePresetId") },
                     appThemeMode = prefObj.optString("appThemeMode", "system").ifBlank { "system" },
+                    appColorTheme = prefObj.optString("appColorTheme", "warm-paper").ifBlank { "warm-paper" },
+                    syncLauncherIcon = prefObj.optBoolean("syncLauncherIcon", true),
                     layoutViewOrientation = prefObj.optString("layoutViewOrientation", "vertical").ifBlank { "vertical" },
                     showWallpaperInPreview = prefObj.optBoolean("showWallpaperInPreview", true),
                     activeWallpaperSource = prefObj.optString("activeWallpaperSource", "device").ifBlank { "device" },
