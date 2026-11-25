@@ -1,0 +1,29 @@
+{
+  "launcherPackage": "com.sec.android.app.launcher",
+  "launcherVersion": "18.0.07.53",
+  "homeUpVersion": "18.0.00.38",
+  "verifiedAt": "2026-11-25T03:38:00+05:30",
+  "capabilities": {
+    "home_screen_page_creation": {"status": "Supported", "notes": "Verified Add page button in Home Edit Mode (page 13+ -> Add page)."},
+    "home_screen_page_deletion": {"status": "Supported", "notes": "Verified delete_page_layout button in Home Edit Mode on empty pages."},
+    "page_reordering": {"status": "Partially supported", "notes": "Home Edit Mode allows dragging pages or staging pages in target order."},
+    "max_pages": {"status": "Supported", "notes": "13+ pages already active on device; supports 16+ pages required for full category suite."},
+    "default_home_page_selection": {"status": "Supported", "notes": "Verified default_page_button in Home Edit Mode."},
+    "home_screen_grid_options": {"status": "Supported", "notes": "Native One UI supports 4x6 and 5x6; Home Up unlocks 4..5 x 5..7."},
+    "home_up_enhanced_layout": {"status": "Supported", "notes": "Home Up 18.0.00.38 installed & enabled; DIY Home, folder grid, icon scale, and backup available."},
+    "folder_creation_and_renaming": {"status": "Supported", "notes": "9 existing named folders observed in LauncherProvider dump."},
+    "folder_capacity": {"status": "Supported", "notes": "Existing Fitness folder holds 17 apps and UPI folder holds 14 apps across folder pages."},
+    "single_app_folder_retention": {"status": "Unsupported", "notes": "Standard One UI Home dissolves a folder when reduced to 1 item; standalone icons recommended for 1-app banks (ICICI Bank, Axis Bank) unless user prefers a second shortcut."},
+    "native_shortcut_duplication": {"status": "Supported", "notes": "Verified empirically in existing LauncherProvider dump (PhonePe on 3 pages, Gmail & Calendar on 2 pages)."},
+    "duplicate_shortcuts_across_pages_and_folders": {"status": "Supported", "notes": "PhonePe appears both standalone on Page 6/13 and inside UPI folder on Page 8; YouTube inside Google folder and on Page 6."},
+    "widget_placement_and_resizing": {"status": "Supported", "notes": "Verified CategoryHeaderWidgetProvider placed on Page 1 (id=46, 4x1), rendered transparently, and cleanly removed."},
+    "multiple_header_widget_instances": {"status": "Supported", "notes": "Per-appWidgetId configuration and reconfigurable WidgetConfigActivity supported."},
+    "widget_pinning_api": {"status": "Supported", "notes": "requestPinAppWidget triggers Samsung 'Add to Home screen?' confirmation dialog; places on first available slot (not arbitrary target page)."},
+    "widget_picker_target_page": {"status": "Supported", "notes": "Opening Widgets from Home Edit Mode on target page places directly onto that page."},
+    "empty_page_retention": {"status": "Supported", "notes": "Observed Page 5 and Page 12 retained with 0 items on One UI Home 18.0.07.53; Wallpaper Spacer widget also available as fallback."},
+    "transparent_placeholder_widget": {"status": "Supported", "notes": "WallpaperPlaceholderWidgetProvider built, zero UI/click/background footprint."},
+    "dock_customization": {"status": "Supported", "notes": "Hotseat holds up to 5 slots (currently Camera, Phone, Google Messages, Samsung Messages, Apps button)."},
+    "home_up_backup_restore": {"status": "Supported", "notes": "Verified Immediate backup created at 11/25/2026 03:17:30 inside Home Up."},
+    "accessibility_hierarchy_quality": {"status": "Partially supported", "notes": "Home screen & Home Edit Mode expose clean bounds/IDs; wsCellLayoutContainer content-desc can report stale page index, so PageIndicatorMarker selection in dumpsys is used as ground truth; uiautomator dump may stall on animated Widget Picker bottom sheet (use screencap/dumpsys there)."}
+  }
+}

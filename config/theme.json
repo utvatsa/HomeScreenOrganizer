@@ -1,0 +1,16 @@
+{
+  "header": {
+    "fontFamily": "sans-serif",
+    "fontWeight": 300,
+    "fontSizeSp": 26.0,
+    "textColor": "#FFFFFFFF",
+    "opacity": 0.92,
+    "alignment": "start",
+    "backgroundColor": "#00000000",
+    "paddingDp": 8,
+    "letterSpacing": 0.03,
+    "showSeparator": false,
+    "separatorColor": "#40FFFFFF",
+    "shadowEnabled": false
+  }
+}
