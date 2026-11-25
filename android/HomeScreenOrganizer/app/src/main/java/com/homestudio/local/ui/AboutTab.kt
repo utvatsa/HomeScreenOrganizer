@@ -41,12 +41,14 @@ private const val GITHUB_REPO_URL = "https://github.com/utvatsa/HomeScreenOrgani
 
 private val ABOUT_FEATURES = listOf(
     "✨ One UI 9 Expressive Floating Navigation & Hamburger Drawer",
+    "🧭 Interactive 4-Step Guided Studio with ✓ Progress & Expand/Collapse All",
+    "🗂️ Saved JSON Drafts & Chronological Applied Layouts Snapshot Archive",
     "📱 Exact Live Current Layout Viewer with Folder Drill-Down",
     "🖼️ Unlocked Home Wallpaper Selector (Lock Screen Untouched)",
     "🔀 Vertical Stacked & Horizontal Swipeable Layout Previewer",
     "🧠 Offline App Catalog & Suite Suggestions (Installed Apps Only)",
     "📁 Folder Rename, Item Toggle, Breakdown & Custom Builder",
-    "🌓 Responsive Obsidian Dark, Crisp Light & System Themes",
+    "🌓 Responsive Curated Light, Dark & System Themes + Synced Launcher Icon",
     "🛡️ 100% Free ($0), Offline, Zero Tracking & Production-Safe",
 )
 

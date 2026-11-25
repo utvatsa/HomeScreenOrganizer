@@ -4,11 +4,21 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
-class HomeStudioStore(private val context: Context) {
+class HomeStudioStore internal constructor(
+    private val filesDir: File,
+    private val externalFilesDir: File? = null,
+) {
+    constructor(context: Context) : this(context.filesDir, context.getExternalFilesDir(null))
 
     private val configFile: File
-        get() = File(context.filesDir, "home_studio_config.json")
+        get() = File(filesDir, "home_studio_config.json")
+
+    private val archiveFile: File
+        get() = File(filesDir, "layout_archive.json")
 
     @Synchronized
     fun load(): HomeStudioConfig {
@@ -27,10 +37,11 @@ class HomeStudioStore(private val context: Context) {
 
     @Synchronized
     fun save(config: HomeStudioConfig) {
-        val tmp = File(context.filesDir, "home_studio_config.json.tmp")
-        tmp.writeText(toJson(config), Charsets.UTF_8)
+        val serialized = toJson(config)
+        val tmp = File(filesDir, "home_studio_config.json.tmp")
+        tmp.writeText(serialized, Charsets.UTF_8)
         if (!tmp.renameTo(configFile)) {
-            configFile.writeText(toJson(config), Charsets.UTF_8)
+            configFile.writeText(serialized, Charsets.UTF_8)
             tmp.delete()
         }
     }
@@ -81,10 +92,10 @@ class HomeStudioStore(private val context: Context) {
     }
 
     private val observedSnapshotFile: File
-        get() = File(context.filesDir, "observed_layout_snapshot.json")
+        get() = File(filesDir, "observed_layout_snapshot.json")
 
     private val externalObservedSnapshotFile: File?
-        get() = context.getExternalFilesDir(null)?.let { File(it, "observed_layout_snapshot.json") }
+        get() = externalFilesDir?.let { File(it, "observed_layout_snapshot.json") }
 
     fun saveObservedSnapshotJson(rawJson: String): ObservedSnapshotResult {
         observedSnapshotFile.writeText(rawJson, Charsets.UTF_8)
@@ -123,6 +134,196 @@ class HomeStudioStore(private val context: Context) {
             },
             isLiveSnapshot = false,
         )
+    }
+
+    @Synchronized
+    fun loadArchive(): List<LayoutArchiveEntry> {
+        val file = archiveFile
+        if (!file.exists()) return emptyList()
+        return try {
+            sortArchiveEntries(archiveFromJson(file.readText(Charsets.UTF_8)))
+        } catch (_: Throwable) {
+            emptyList()
+        }
+    }
+
+    @Synchronized
+    fun saveArchive(entries: List<LayoutArchiveEntry>) {
+        val serialized = archiveToJson(sortArchiveEntries(entries))
+        val tmp = File(filesDir, "layout_archive.json.tmp")
+        tmp.writeText(serialized, Charsets.UTF_8)
+        if (!tmp.renameTo(archiveFile)) {
+            archiveFile.writeText(serialized, Charsets.UTF_8)
+            tmp.delete()
+        }
+    }
+
+    @Synchronized
+    fun saveDraft(
+        config: HomeStudioConfig,
+        name: String? = null,
+        existingDraftId: String? = null,
+        notes: String? = null,
+        nowEpochMs: Long = System.currentTimeMillis(),
+    ): LayoutArchiveEntry {
+        val current = loadArchive().toMutableList()
+        val cleanName = name?.trim()?.ifBlank { null }
+        val defaultHome = resolveDefaultHomeTitle(config)
+        val gridSummary = formatGridSummary(config)
+
+        if (existingDraftId != null) {
+            val idx = current.indexOfFirst { it.id == existingDraftId && it.kind == LayoutSnapshotKind.DRAFT }
+            if (idx >= 0) {
+                val existing = current[idx]
+                val updated = existing.copy(
+                    name = cleanName ?: existing.name,
+                    updatedAtEpochMs = nowEpochMs,
+                    pageCount = config.pages.size,
+                    defaultHomeTitle = defaultHome,
+                    presetId = config.preferences.activePresetId,
+                    gridSummary = gridSummary,
+                    notes = notes?.trim()?.ifBlank { null } ?: existing.notes,
+                    config = config,
+                )
+                current[idx] = updated
+                saveArchive(current)
+                return updated
+            }
+        }
+
+        val entry = LayoutArchiveEntry(
+            id = nextSnapshotId("draft", current.map { it.id }.toSet(), nowEpochMs),
+            name = cleanName ?: defaultSnapshotTitle(LayoutSnapshotKind.DRAFT, config, nowEpochMs),
+            kind = LayoutSnapshotKind.DRAFT,
+            createdAtEpochMs = nowEpochMs,
+            updatedAtEpochMs = nowEpochMs,
+            isActive = false,
+            pageCount = config.pages.size,
+            defaultHomeTitle = defaultHome,
+            presetId = config.preferences.activePresetId,
+            gridSummary = gridSummary,
+            notes = notes?.trim()?.ifBlank { null },
+            config = config,
+        )
+        current.add(0, entry)
+        saveArchive(current)
+        return entry
+    }
+
+    @Synchronized
+    fun recordAppliedSnapshot(
+        config: HomeStudioConfig,
+        name: String? = null,
+        notes: String? = null,
+        nowEpochMs: Long = System.currentTimeMillis(),
+    ): LayoutArchiveEntry {
+        val appliedConfig = config.copy(
+            preferences = config.preferences.copy(onboardingCompleted = true),
+        )
+        save(appliedConfig)
+
+        val current = loadArchive().map { it.copy(isActive = false) }.toMutableList()
+        val cleanName = name?.trim()?.ifBlank { null }
+        val entry = LayoutArchiveEntry(
+            id = nextSnapshotId("applied", current.map { it.id }.toSet(), nowEpochMs),
+            name = cleanName ?: defaultSnapshotTitle(LayoutSnapshotKind.APPLIED, appliedConfig, nowEpochMs),
+            kind = LayoutSnapshotKind.APPLIED,
+            createdAtEpochMs = nowEpochMs,
+            updatedAtEpochMs = nowEpochMs,
+            isActive = true,
+            pageCount = appliedConfig.pages.size,
+            defaultHomeTitle = resolveDefaultHomeTitle(appliedConfig),
+            presetId = appliedConfig.preferences.activePresetId,
+            gridSummary = formatGridSummary(appliedConfig),
+            notes = notes?.trim()?.ifBlank { null },
+            config = appliedConfig,
+        )
+        current.add(0, entry)
+        saveArchive(current)
+        return entry
+    }
+
+    @Synchronized
+    fun loadSnapshotIntoStudio(
+        entryId: String,
+        currentConfig: HomeStudioConfig,
+    ): Pair<HomeStudioConfig, LayoutArchiveEntry>? {
+        val entry = loadArchive().firstOrNull { it.id == entryId } ?: return null
+        val merged = mergeSnapshotIntoStudioConfig(currentConfig, entry.config)
+        save(merged)
+        return merged to entry
+    }
+
+    @Synchronized
+    fun switchActiveSnapshot(
+        entryId: String,
+        currentConfig: HomeStudioConfig,
+        nowEpochMs: Long = System.currentTimeMillis(),
+    ): Pair<HomeStudioConfig, LayoutArchiveEntry>? {
+        val current = loadArchive()
+        val target = current.firstOrNull { it.id == entryId } ?: return null
+        val merged = mergeSnapshotIntoStudioConfig(currentConfig, target.config).let {
+            it.copy(preferences = it.preferences.copy(onboardingCompleted = true))
+        }
+        save(merged)
+
+        return if (target.kind == LayoutSnapshotKind.APPLIED) {
+            var activeEntry: LayoutArchiveEntry = target
+            val updatedList = current.map { entry ->
+                if (entry.id == target.id) {
+                    entry.copy(isActive = true, updatedAtEpochMs = nowEpochMs).also { activeEntry = it }
+                } else {
+                    entry.copy(isActive = false)
+                }
+            }
+            saveArchive(updatedList)
+            merged to activeEntry
+        } else {
+            val demoted = current.map { it.copy(isActive = false) }.toMutableList()
+            val promoted = LayoutArchiveEntry(
+                id = nextSnapshotId("applied", demoted.map { it.id }.toSet(), nowEpochMs),
+                name = "${target.name} (Applied)",
+                kind = LayoutSnapshotKind.APPLIED,
+                createdAtEpochMs = nowEpochMs,
+                updatedAtEpochMs = nowEpochMs,
+                isActive = true,
+                pageCount = merged.pages.size,
+                defaultHomeTitle = resolveDefaultHomeTitle(merged),
+                presetId = merged.preferences.activePresetId,
+                gridSummary = formatGridSummary(merged),
+                notes = "Applied from draft '${target.name}'",
+                config = merged,
+            )
+            demoted.add(0, promoted)
+            saveArchive(demoted)
+            merged to promoted
+        }
+    }
+
+    @Synchronized
+    fun renameArchiveEntry(
+        entryId: String,
+        newName: String,
+        nowEpochMs: Long = System.currentTimeMillis(),
+    ): Boolean {
+        val clean = newName.trim()
+        if (clean.isBlank()) return false
+        val current = loadArchive()
+        if (current.none { it.id == entryId }) return false
+        val updated = current.map {
+            if (it.id == entryId) it.copy(name = clean, updatedAtEpochMs = nowEpochMs) else it
+        }
+        saveArchive(updated)
+        return true
+    }
+
+    @Synchronized
+    fun deleteDraft(entryId: String): Boolean {
+        val current = loadArchive()
+        val target = current.firstOrNull { it.id == entryId } ?: return false
+        if (target.isActive || target.kind != LayoutSnapshotKind.DRAFT) return false
+        saveArchive(current.filterNot { it.id == entryId })
+        return true
     }
 
     companion object {
@@ -646,6 +847,125 @@ class HomeStudioStore(private val context: Context) {
                 sourceLabel = "Exact One UI Home snapshot (${pages.size} live pages)",
                 isLiveSnapshot = true,
             )
+        }
+
+        fun archiveToJson(entries: List<LayoutArchiveEntry>): String {
+            val root = JSONObject()
+            root.put("schemaVersion", 1)
+            val arr = JSONArray()
+            entries.forEach { entry ->
+                arr.put(JSONObject().apply {
+                    put("id", entry.id)
+                    put("name", entry.name)
+                    put("kind", entry.kind.name)
+                    put("createdAtEpochMs", entry.createdAtEpochMs)
+                    put("updatedAtEpochMs", entry.updatedAtEpochMs)
+                    put("isActive", entry.isActive)
+                    put("pageCount", entry.pageCount)
+                    if (entry.defaultHomeTitle != null) put("defaultHomeTitle", entry.defaultHomeTitle)
+                    if (entry.presetId != null) put("presetId", entry.presetId)
+                    put("gridSummary", entry.gridSummary)
+                    if (entry.notes != null) put("notes", entry.notes)
+                    put("config", JSONObject(toJson(entry.config)))
+                })
+            }
+            root.put("entries", arr)
+            return root.toString(2)
+        }
+
+        fun archiveFromJson(raw: String): List<LayoutArchiveEntry> {
+            val root = JSONObject(raw)
+            val arr = root.optJSONArray("entries") ?: return emptyList()
+            val result = mutableListOf<LayoutArchiveEntry>()
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val cfgObj = o.optJSONObject("config") ?: continue
+                val cfg = fromJson(cfgObj.toString())
+                val created = o.optLong("createdAtEpochMs", System.currentTimeMillis())
+                result.add(
+                    LayoutArchiveEntry(
+                        id = o.getString("id"),
+                        name = o.optString("name", "Snapshot ${i + 1}"),
+                        kind = LayoutSnapshotKind.fromString(o.optString("kind", "DRAFT")),
+                        createdAtEpochMs = created,
+                        updatedAtEpochMs = o.optLong("updatedAtEpochMs", created),
+                        isActive = o.optBoolean("isActive", false),
+                        pageCount = o.optInt("pageCount", cfg.pages.size),
+                        defaultHomeTitle = o.optString("defaultHomeTitle")
+                            .takeIf { o.has("defaultHomeTitle") && !o.isNull("defaultHomeTitle") },
+                        presetId = o.optString("presetId")
+                            .takeIf { o.has("presetId") && !o.isNull("presetId") },
+                        gridSummary = o.optString("gridSummary", formatGridSummary(cfg)),
+                        notes = o.optString("notes").takeIf { o.has("notes") && !o.isNull("notes") },
+                        config = cfg,
+                    ),
+                )
+            }
+            return sortArchiveEntries(result)
+        }
+
+        fun mergeSnapshotIntoStudioConfig(
+            currentConfig: HomeStudioConfig,
+            snapshotConfig: HomeStudioConfig,
+        ): HomeStudioConfig {
+            val curPrefs = currentConfig.preferences
+            val snapPrefs = snapshotConfig.preferences
+            return snapshotConfig.copy(
+                preferences = snapPrefs.copy(
+                    appThemeMode = curPrefs.appThemeMode,
+                    appColorTheme = curPrefs.appColorTheme,
+                    syncLauncherIcon = curPrefs.syncLauncherIcon,
+                    hasCompletedTutorial = curPrefs.hasCompletedTutorial,
+                    onboardingCompleted = curPrefs.onboardingCompleted || snapPrefs.onboardingCompleted,
+                ),
+            )
+        }
+
+        fun configMatchesEntry(config: HomeStudioConfig, entry: LayoutArchiveEntry): Boolean {
+            val other = entry.config
+            return config.pages == other.pages &&
+                config.globalTheme == other.globalTheme &&
+                config.preferences.gridColumns == other.preferences.gridColumns &&
+                config.preferences.gridRows == other.preferences.gridRows &&
+                config.preferences.defaultMaxItemsPerPage == other.preferences.defaultMaxItemsPerPage &&
+                config.preferences.activePresetId == other.preferences.activePresetId
+        }
+
+        fun resolveDefaultHomeTitle(config: HomeStudioConfig): String? =
+            config.pages.firstOrNull { it.isDefaultHome }?.title
+                ?: config.pages.firstOrNull { !it.isWallpaperPage }?.title
+                ?: config.pages.firstOrNull()?.title
+
+        fun formatGridSummary(config: HomeStudioConfig): String =
+            "${config.preferences.gridColumns}×${config.preferences.gridRows} • Max ${config.preferences.defaultMaxItemsPerPage}"
+
+        fun defaultSnapshotTitle(
+            kind: LayoutSnapshotKind,
+            config: HomeStudioConfig,
+            epochMs: Long,
+        ): String {
+            val fmt = SimpleDateFormat("dd MMM HH:mm", Locale.US)
+            val prefix = if (kind == LayoutSnapshotKind.APPLIED) "Applied" else "Draft"
+            val presetTag = config.preferences.activePresetId?.replaceFirstChar { it.uppercase() }
+                ?: "${config.pages.size}p"
+            return "$prefix ($presetTag) • ${fmt.format(Date(epochMs))}"
+        }
+
+        private fun sortArchiveEntries(entries: List<LayoutArchiveEntry>): List<LayoutArchiveEntry> =
+            entries.sortedWith(
+                compareByDescending<LayoutArchiveEntry> { it.isActive }
+                    .thenByDescending { it.updatedAtEpochMs }
+                    .thenByDescending { it.createdAtEpochMs },
+            )
+
+        private fun nextSnapshotId(prefix: String, usedIds: Set<String>, nowEpochMs: Long): String {
+            var candidate = "$prefix-$nowEpochMs"
+            var seq = 2
+            while (candidate in usedIds) {
+                candidate = "$prefix-$nowEpochMs-$seq"
+                seq++
+            }
+            return candidate
         }
     }
 }

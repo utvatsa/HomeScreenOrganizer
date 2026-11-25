@@ -113,6 +113,7 @@ enum class OrganizerDest(val title: String) {
     STUDIO("Studio"),
     CURRENT("Current"),
     CATALOG("Catalog"),
+    ARCHIVE("Saved & Applied Layouts"),
     THEMES("App Themes & Icon"),
     SETTINGS("Settings"),
     SETUP("Setup"),
@@ -217,6 +218,12 @@ private fun HomeOrganizerApp(
     var observedSnapshot by remember(config.widgets) {
         mutableStateOf(store.loadObservedSnapshot(config))
     }
+    var archiveEntries by remember {
+        mutableStateOf(store.loadArchive())
+    }
+    var pendingExportConfig by remember {
+        mutableStateOf<HomeStudioConfig?>(null)
+    }
     var wallpaperBitmap by remember(config.preferences.activeWallpaperSource) {
         mutableStateOf(WallpaperEngine.loadActiveWallpaperBitmap(context, config.preferences.activeWallpaperSource))
     }
@@ -237,6 +244,10 @@ private fun HomeOrganizerApp(
             tutorialStepIndex = 0
             showTutorial = true
         }
+    }
+
+    LaunchedEffect(dest) {
+        mainScrollState.scrollTo(0)
     }
 
     LaunchedEffect(showTutorial, tutorialStepIndex) {
@@ -335,13 +346,26 @@ private fun HomeOrganizerApp(
     val exportHostLayoutLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
+        val exportTarget = pendingExportConfig ?: config
+        val exportingFromArchive = pendingExportConfig != null
+        pendingExportConfig = null
         if (uri != null) {
             runCatching {
                 context.contentResolver.openOutputStream(uri)?.use {
-                    it.write(HomeStudioStore.toHostDesiredLayoutJson(config).toByteArray(Charsets.UTF_8))
+                    it.write(HomeStudioStore.toHostDesiredLayoutJson(exportTarget).toByteArray(Charsets.UTF_8))
                 }
             }.onSuccess {
-                statusMsg = "Exported host DesiredLayout JSON (ready for homescreenorganizer apply)."
+                if (!exportingFromArchive) {
+                    val savedEntry = store.recordAppliedSnapshot(
+                        config = exportTarget,
+                        notes = "Exported host DesiredLayout JSON",
+                    )
+                    onConfigChange(savedEntry.config)
+                    archiveEntries = store.loadArchive()
+                    statusMsg = "Exported DesiredLayout JSON & archived '${savedEntry.name}'."
+                } else {
+                    statusMsg = "Exported archived DesiredLayout JSON."
+                }
             }.onFailure { err ->
                 statusMsg = "Layout export failed: ${err.message}"
             }
@@ -404,6 +428,17 @@ private fun HomeOrganizerApp(
                             },
                         )
                     }
+                    DrawerNavItem(
+                        label = "Saved & Applied Layouts",
+                        badge = "${archiveEntries.size}",
+                        badgePositive = archiveEntries.any { it.isActive },
+                        selected = dest == OrganizerDest.ARCHIVE,
+                        onClick = {
+                            archiveEntries = store.loadArchive()
+                            dest = OrganizerDest.ARCHIVE
+                            scope.launch { drawerState.close() }
+                        },
+                    )
 
                     HorizontalDivider(color = p.border, modifier = Modifier.padding(vertical = 4.dp))
                     Text("SYSTEM & PREFERENCES", style = MaterialTheme.typography.labelSmall, color = p.textMuted, modifier = Modifier.padding(start = 8.dp))
@@ -622,6 +657,7 @@ private fun HomeOrganizerApp(
                                 usageTopApps = readiness.topUsedApps,
                                 boundHeaderIds = boundHeaderIds,
                                 wallpaperBitmap = wallpaperBitmap,
+                                archiveEntries = archiveEntries,
                                 onUpdateConfig = { updated, msg ->
                                     store.save(updated)
                                     onConfigChange(updated)
@@ -636,13 +672,78 @@ private fun HomeOrganizerApp(
                                         statusMsg = "Launcher pinning unsupported; add Category Header from Home Widgets."
                                     }
                                 },
-                                onExportHostLayout = { exportHostLayoutLauncher.launch("desired-layout.json") },
+                                onExportHostLayout = {
+                                    pendingExportConfig = null
+                                    exportHostLayoutLauncher.launch("desired-layout.json")
+                                },
+                                onSaveDraft = { name, notes ->
+                                    val saved = store.saveDraft(config = config, name = name, notes = notes)
+                                    archiveEntries = store.loadArchive()
+                                    statusMsg = "Saved JSON draft '${saved.name}'."
+                                },
+                                onApplySnapshot = { name, notes ->
+                                    val applied = store.recordAppliedSnapshot(config = config, name = name, notes = notes)
+                                    onConfigChange(applied.config)
+                                    archiveEntries = store.loadArchive()
+                                    CategoryHeaderWidgetProvider.updateAll(context)
+                                    statusMsg = "Marked '${applied.name}' as Active & archived snapshot."
+                                },
+                                onOpenArchive = {
+                                    archiveEntries = store.loadArchive()
+                                    dest = OrganizerDest.ARCHIVE
+                                },
                                 onOpenTools = { showToolsDialog = true },
                                 onOpenWallpaperPicker = { page ->
                                     wallpaperPreviewPage = page
                                     showWallpaperDialog = true
                                 },
+                                forceExpandAllForTutorial = showTutorial,
                                 tutorialRegistry = tutorialRegistry,
+                            )
+
+                            OrganizerDest.ARCHIVE -> LayoutsArchiveTab(
+                                config = config,
+                                archiveEntries = archiveEntries,
+                                wallpaperBitmap = wallpaperBitmap,
+                                onSaveCurrentAsDraft = { name, notes ->
+                                    val saved = store.saveDraft(config = config, name = name, notes = notes)
+                                    archiveEntries = store.loadArchive()
+                                    statusMsg = "Saved JSON draft '${saved.name}'."
+                                },
+                                onLoadIntoStudio = { entry ->
+                                    val loaded = store.loadSnapshotIntoStudio(entry.id, config)
+                                    if (loaded != null) {
+                                        onConfigChange(loaded.first)
+                                        CategoryHeaderWidgetProvider.updateAll(context)
+                                        dest = OrganizerDest.STUDIO
+                                        statusMsg = "Loaded '${loaded.second.name}' into Studio for editing."
+                                    }
+                                },
+                                onSwitchActive = { entry ->
+                                    val switched = store.switchActiveSnapshot(entry.id, config)
+                                    if (switched != null) {
+                                        onConfigChange(switched.first)
+                                        archiveEntries = store.loadArchive()
+                                        CategoryHeaderWidgetProvider.updateAll(context)
+                                        statusMsg = "Active setup switched to '${switched.second.name}'."
+                                    }
+                                },
+                                onRenameEntry = { entry, newName ->
+                                    if (store.renameArchiveEntry(entry.id, newName)) {
+                                        archiveEntries = store.loadArchive()
+                                        statusMsg = "Renamed snapshot to '$newName'."
+                                    }
+                                },
+                                onDeleteDraft = { entry ->
+                                    if (store.deleteDraft(entry.id)) {
+                                        archiveEntries = store.loadArchive()
+                                        statusMsg = "Deleted draft '${entry.name}'."
+                                    }
+                                },
+                                onExportEntryHostJson = { entry ->
+                                    pendingExportConfig = entry.config
+                                    exportHostLayoutLauncher.launch("desired-layout-${entry.id}.json")
+                                },
                             )
 
                             OrganizerDest.CURRENT -> CurrentLayoutTab(
@@ -774,7 +875,7 @@ private fun HomeOrganizerApp(
                 }
 
                 // Bottom breathing space so content scrolls comfortably above floating One UI 9 dock
-                Spacer(modifier = Modifier.height(104.dp))
+                Spacer(modifier = Modifier.navigationBarsPadding().height(112.dp))
             }
 
             // Floating One UI 9 Expressive Capsule Bottom Navigation Dock
@@ -823,6 +924,10 @@ private fun HomeOrganizerApp(
                 statusMsg = "Tutorial skipped — replay anytime via ≡ Interactive Tutorial."
             },
         )
+    }
+
+    if (dest == OrganizerDest.ARCHIVE) {
+        BackHandler { dest = OrganizerDest.STUDIO }
     }
 
     if (dest == OrganizerDest.THEMES) {
@@ -914,6 +1019,7 @@ private fun HomeOrganizerApp(
             onReload = {
                 val reloaded = store.load()
                 onConfigChange(reloaded)
+                archiveEntries = store.loadArchive()
                 observedSnapshot = store.loadObservedSnapshot(reloaded)
                 CategoryHeaderWidgetProvider.updateAll(context)
                 readiness = ReadinessChecker.inspect(context)
@@ -925,7 +1031,10 @@ private fun HomeOrganizerApp(
             },
             onImportJson = { importLauncher.launch(arrayOf("application/json", "*/*")) },
             onExportConfig = { exportConfigLauncher.launch("home-organizer-config.json") },
-            onExportHostLayout = { exportHostLayoutLauncher.launch("desired-layout.json") },
+            onExportHostLayout = {
+                pendingExportConfig = null
+                exportHostLayoutLauncher.launch("desired-layout.json")
+            },
         )
     }
 }

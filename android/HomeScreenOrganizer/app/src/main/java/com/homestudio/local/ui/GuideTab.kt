@@ -70,8 +70,8 @@ private val GUIDE_STEPS = listOf(
     ),
     GuideStep(
         number = "Step 6",
-        title = "Reorder Pages, Back Up & Apply Automation",
-        body = "Use Up/Down arrows and Set Home on page cards to rearrange or mark your Default Home page (such as keeping Most Used to the left of Daily Essentials). Export Layout JSON cleanly to sync with the host CLI.",
+        title = "Save Drafts, Archive Snapshots & Export JSON",
+        body = "Use Studio Step 4 to save a named JSON draft, Apply / Mark Applied (automatically retaining a full snapshot in Hamburger Drawer -> Saved & Applied Layouts), or export DesiredLayout JSON. Revisit Saved & Applied Layouts anytime to preview, load into Studio, or switch active setups.",
     ),
 )
 
