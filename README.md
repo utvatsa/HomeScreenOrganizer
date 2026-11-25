@@ -1,6 +1,6 @@
 # HomeScreenOrganizer
 
-Autonomous, declarative Android home screen management, intelligent layout studio, transparent Category Header widgets, and One UI layout automation (`v0.6.0`).
+Autonomous, declarative Android home screen management, intelligent layout studio, transparent Category Header widgets, and One UI layout automation (`v1.0.0`).
 
 > **Platform Note (Android Only):** **HomeScreenOrganizer** is built exclusively for **Android 12+ (API 31+)** and tailored for **Samsung One UI Home**. iOS and non-Android launchers are not supported. (The Android package retains internal ID `com.homestudio.local` for seamless upgrades with active home-screen widgets.)
 
@@ -14,7 +14,15 @@ Open the app's **Setup** tab (or run `.venv/bin/homescreenorganizer checklist`) 
 4. **Samsung Smart Switch** (`com.sec.android.easyMover`, free) — Optional safety backup for launcher/device state.
 5. **KWGT Kustom Widget Maker** (`org.kustom.widget`, Free edition) — Strictly optional; built-in `Category Header` & `Wallpaper Spacer` widgets run standalone.
 
-## Features (`v0.6.0`)
+## Features (`v1.0.0`)
+
+- **Interactive 4-Step Guided Studio**:
+  - Collapsible guided steps (**1. Starter Collection / Strategy**, **2. Grid & Capacity Rules**, **3. Layout Viewer, Wallpaper & Pages Builder**, **4. Save Draft, Apply / Mark Applied & Export JSON**) with live `✓` completion badges, summary subtitles, and a top **Expand All / Collapse All** control.
+  - Preserves **Brief / Balanced / Detailed** starter presets alongside **Custom Start**, configurable grid columns (`4–6`) & rows (`5–7`), global/per-page Max Apps (`4–16`), and the neutral dark `MiniPhoneGridPreview` canvas.
+- **JSON Drafts & Saved & Applied Layouts Archive (Hamburger Drawer -> `Saved & Applied Layouts`)**:
+  - Save named/timestamped JSON drafts and reload them cleanly into Studio without altering app chrome theme or tutorial state.
+  - Automatically retains full chronological `APPLIED` snapshots whenever a layout is applied or exported—never overwriting history.
+  - Preview snapshots (pages + raw JSON), switch active setups cleanly, and rename or delete non-active drafts.
 
 - **Animated Brand Splash & Verbose Live Spotlight Tutorial**:
   - Smooth zero-flash **Splash Screen** shown on every app launch.

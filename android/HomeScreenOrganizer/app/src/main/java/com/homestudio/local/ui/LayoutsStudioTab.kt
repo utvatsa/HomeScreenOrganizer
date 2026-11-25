@@ -40,6 +40,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,8 +56,11 @@ import androidx.compose.ui.unit.sp
 import com.homestudio.local.catalog.InstalledAppInfo
 import com.homestudio.local.data.HeaderPlacement
 import com.homestudio.local.data.HomeStudioConfig
+import com.homestudio.local.data.HomeStudioStore
+import com.homestudio.local.data.LayoutArchiveEntry
 import com.homestudio.local.data.LayoutFolderChild
 import com.homestudio.local.data.LayoutSlotItem
+import com.homestudio.local.data.LayoutSnapshotKind
 import com.homestudio.local.data.StudioPage
 import com.homestudio.local.diagnostics.UsageAppInfo
 import com.homestudio.local.planner.LayoutSuggestionEngine
@@ -73,150 +77,349 @@ fun LayoutsStudioTab(
     usageTopApps: List<UsageAppInfo>,
     boundHeaderIds: IntArray,
     wallpaperBitmap: Bitmap?,
+    archiveEntries: List<LayoutArchiveEntry>,
     onUpdateConfig: (HomeStudioConfig, String) -> Unit,
     onPinHeaderForPage: (StudioPage) -> Unit,
     onExportHostLayout: () -> Unit,
+    onSaveDraft: (name: String, notes: String?) -> Unit,
+    onApplySnapshot: (name: String, notes: String?) -> Unit,
+    onOpenArchive: () -> Unit,
     onOpenTools: () -> Unit,
     onOpenWallpaperPicker: (StudioPage?) -> Unit,
+    forceExpandAllForTutorial: Boolean = false,
     tutorialRegistry: TutorialTargetRegistry? = null,
 ) {
-    var showPresets by remember(config.pages.isEmpty()) { mutableStateOf(config.pages.isEmpty()) }
+    var expandedSteps by remember {
+        mutableStateOf(if (config.pages.isEmpty()) setOf(1, 2) else setOf(3, 4))
+    }
+    var hasAdjustedGrid by remember { mutableStateOf(false) }
     var showTemplatePicker by remember { mutableStateOf(false) }
     var activeSuggestionDraft by remember { mutableStateOf<SuggestedPageDraft?>(null) }
     var editingExistingPageId by remember { mutableStateOf<String?>(null) }
     var showCustomBuilder by remember { mutableStateOf(false) }
     var editingHeaderPage by remember { mutableStateOf<StudioPage?>(null) }
+    var showSaveDraftDialog by remember { mutableStateOf(false) }
+    var showApplySnapshotDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(forceExpandAllForTutorial) {
+        if (forceExpandAllForTutorial) {
+            expandedSteps = setOf(1, 2, 3, 4)
+        }
+    }
 
     val p = LocalStudioPalette.current
     val globalMax = config.preferences.defaultMaxItemsPerPage
     val cols = config.preferences.gridColumns
     val rows = config.preferences.gridRows
+    val sortedPages = config.pages.sortedBy { it.order }
+
+    val matchingActiveEntry = remember(config, archiveEntries) {
+        archiveEntries.firstOrNull { it.isActive && HomeStudioStore.configMatchesEntry(config, it) }
+    }
+    val matchingSavedEntry = remember(config, archiveEntries) {
+        matchingActiveEntry ?: archiveEntries.firstOrNull { HomeStudioStore.configMatchesEntry(config, it) }
+    }
+
+    val step1Done = config.pages.isNotEmpty() || config.preferences.activePresetId != null
+    val step2Done = config.pages.isNotEmpty() || hasAdjustedGrid
+    val step3Done = config.pages.isNotEmpty()
+    val step4Done = matchingSavedEntry != null
+
+    val step1Subtitle = when {
+        config.preferences.activePresetId != null -> {
+            val pname = config.preferences.activePresetId.replaceFirstChar { it.uppercase() }
+            "Preset: $pname • ${config.pages.size} pages"
+        }
+        config.pages.isNotEmpty() -> "Custom Start • ${config.pages.size} pages"
+        else -> "Pick Brief, Balanced, Detailed or Custom Start"
+    }
+    val step2Subtitle = "${cols}×${rows} grid • Max $globalMax items/page"
+    val step3Subtitle = if (config.pages.isEmpty()) {
+        "Add suggested or custom pages to preview"
+    } else {
+        val ori = if (config.preferences.layoutViewOrientation == "horizontal") "Horizontal Pages" else "Vertical Stack"
+        val wp = if (config.preferences.showWallpaperInPreview) "Wallpaper On" else "Wallpaper Off"
+        "${config.pages.size} pages • $ori • $wp"
+    }
+    val step4Subtitle = when {
+        matchingActiveEntry != null -> "Active snapshot: ${matchingActiveEntry.name}"
+        matchingSavedEntry != null -> "Saved ${if (matchingSavedEntry.kind == LayoutSnapshotKind.DRAFT) "draft" else "snapshot"}: ${matchingSavedEntry.name}"
+        config.pages.isEmpty() -> "Build pages first, then save draft or apply"
+        else -> "Unsaved changes — save draft, apply, or export JSON"
+    }
+
+    fun toggleStep(stepNumber: Int) {
+        expandedSteps = if (stepNumber in expandedSteps) expandedSteps - stepNumber else expandedSteps + stepNumber
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            text = "Layout Studio (${config.pages.size} pages)",
-            style = MaterialTheme.typography.titleMedium,
-            color = p.textPrimary,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Layout Studio (${config.pages.size} pages)",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = p.textPrimary,
+                )
+                Text(
+                    text = "Guided 4-step workflow • Revisit any step anytime",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = p.textMuted,
+                )
+            }
+            if (matchingActiveEntry != null) {
+                Box(
+                    modifier = Modifier
+                        .background(p.positiveSurface, RoundedCornerShape(999.dp))
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                ) {
+                    Text(
+                        text = "Active Synced",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = p.positiveText,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+        }
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            OutlinedButton(onClick = { showPresets = !showPresets }) {
-                Text(if (showPresets) "Hide Presets" else "Presets")
+            OutlinedButton(onClick = { expandedSteps = setOf(1, 2, 3, 4) }) {
+                Text("Expand All")
+            }
+            OutlinedButton(onClick = { expandedSteps = emptySet() }) {
+                Text("Collapse All")
             }
             OutlinedButton(onClick = onOpenTools) { Text("Widgets & Tools") }
         }
     }
 
-    AnimatedVisibility(
-        visible = showPresets,
-        enter = expandVertically(spring(dampingRatio = 0.85f, stiffness = 360f)) + fadeIn(),
-        exit = shrinkVertically() + fadeOut(),
+    // STEP 1: Starter Collection / Strategy (Presets or Custom Start)
+    GuidedStepSection(
+        stepNumber = 1,
+        title = "Starter Collection / Strategy",
+        subtitle = step1Subtitle,
+        completed = step1Done,
+        expanded = forceExpandAllForTutorial || 1 in expandedSteps,
+        onToggle = { toggleStep(1) },
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = p.cardTint),
-            border = BorderStroke(1.dp, p.border),
-        ) {
-            Column(
-                modifier = Modifier.padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+        Text(
+            text = "Detected ${installedApps.size} installed apps (${installedApps.count { !it.isSystemApp }} user apps). Pick a starter suite — every page respects your Max Apps Per Page ($globalMax) and only includes installed apps:",
+            style = MaterialTheme.typography.bodySmall,
+            color = p.textSecondary,
+        )
+        PresetKind.entries.forEach { preset ->
+            val isSelectedPreset = config.preferences.activePresetId == preset.id
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = p.cardElevated),
+                border = BorderStroke(1.dp, if (isSelectedPreset) p.accent.copy(alpha = 0.65f) else p.border),
             ) {
-                Text(
-                    text = if (config.pages.isEmpty()) "First-Use Collection Presets" else "Collection Presets",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = p.secondaryAccent,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = "Detected ${installedApps.size} installed apps (${installedApps.count { !it.isSystemApp }} user apps). Pick a starter suite — every page respects your Max Apps Per Page ($globalMax) and only includes installed apps:",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = p.textSecondary,
-                )
-                PresetKind.entries.forEach { preset ->
-                    Card(
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = p.card),
-                        border = BorderStroke(1.dp, p.border),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Text(preset.title, style = MaterialTheme.typography.titleSmall, color = p.textPrimary)
-                            Text(preset.subtitle, style = MaterialTheme.typography.bodySmall, color = p.textSecondary)
-                            Button(onClick = {
-                                val generated = LayoutSuggestionEngine.generateCollectionPreset(
-                                    preset = preset,
-                                    installedApps = installedApps,
-                                    usageTopApps = usageTopApps,
-                                    columns = cols,
-                                    rows = rows,
-                                    maxItemsPerPage = globalMax,
-                                )
-                                val next = LayoutSuggestionEngine.syncCategoriesAndWidgetsFromPages(
-                                    config.copy(
-                                        pages = generated,
-                                        preferences = config.preferences.copy(
-                                            onboardingCompleted = true,
-                                            activePresetId = preset.id,
-                                        ),
-                                    ),
-                                )
-                                showPresets = false
-                                onUpdateConfig(next, "Applied ${preset.id.replaceFirstChar { it.uppercase() }} preset (${generated.size} layouts).")
-                            }) {
-                                Text("Use ${preset.id.replaceFirstChar { it.uppercase() }}")
+                        Text(
+                            text = preset.title,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = p.textPrimary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (isSelectedPreset) {
+                            Box(
+                                modifier = Modifier
+                                    .background(p.positiveSurface, RoundedCornerShape(999.dp))
+                                    .padding(horizontal = 7.dp, vertical = 2.dp),
+                            ) {
+                                Text("Selected", style = MaterialTheme.typography.labelSmall, color = p.positiveText)
                             }
                         }
                     }
+                    Text(preset.subtitle, style = MaterialTheme.typography.bodySmall, color = p.textSecondary)
+                    Button(onClick = {
+                        val generated = LayoutSuggestionEngine.generateCollectionPreset(
+                            preset = preset,
+                            installedApps = installedApps,
+                            usageTopApps = usageTopApps,
+                            columns = cols,
+                            rows = rows,
+                            maxItemsPerPage = globalMax,
+                        )
+                        val next = LayoutSuggestionEngine.syncCategoriesAndWidgetsFromPages(
+                            config.copy(
+                                pages = generated,
+                                preferences = config.preferences.copy(
+                                    onboardingCompleted = true,
+                                    activePresetId = preset.id,
+                                ),
+                            ),
+                        )
+                        expandedSteps = (expandedSteps - 1) + setOf(3, 4)
+                        onUpdateConfig(next, "Applied ${preset.id.replaceFirstChar { it.uppercase() }} preset (${generated.size} layouts).")
+                    }) {
+                        Text("Use ${preset.id.replaceFirstChar { it.uppercase() }}")
+                    }
+                }
+            }
+        }
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = p.cardElevated),
+            border = BorderStroke(1.dp, p.border),
+        ) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text("Custom Start", style = MaterialTheme.typography.titleSmall, color = p.textPrimary)
+                Text(
+                    text = "Build your own pages from scratch with + Suggested templates or the + Custom builder.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = p.textSecondary,
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedButton(onClick = {
+                        expandedSteps = expandedSteps + 3
+                        showTemplatePicker = true
+                    }) { Text("+ Start with Suggested") }
+                    OutlinedButton(onClick = {
+                        expandedSteps = expandedSteps + 3
+                        showCustomBuilder = true
+                    }) { Text("+ Start Custom Page") }
                 }
             }
         }
     }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .tutorialTarget(tutorialRegistry, "studio_capacity")
-            .animateContentSize(),
-        colors = CardDefaults.cardColors(containerColor = p.card),
-        border = BorderStroke(1.dp, p.border),
+    // STEP 2: Grid & Capacity Rules
+    GuidedStepSection(
+        stepNumber = 2,
+        title = "Grid & Capacity Rules",
+        subtitle = step2Subtitle,
+        completed = step2Done,
+        expanded = forceExpandAllForTutorial || 2 in expandedSteps,
+        onToggle = { toggleStep(2) },
+        modifier = Modifier.tutorialTarget(tutorialRegistry, "studio_capacity"),
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = "Max Apps / Items Per Layout: $globalMax (applies cleanly to new pages & Realign All)",
-                style = MaterialTheme.typography.labelLarge,
-                color = p.textPrimary,
-            )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf(4, 6, 8, 10, 12, 16).forEach { cap ->
-                    FilterChip(
-                        selected = globalMax == cap,
-                        onClick = {
-                            val updated = config.copy(
-                                preferences = config.preferences.copy(defaultMaxItemsPerPage = cap),
-                            )
-                            onUpdateConfig(updated, "Global max items per layout set to $cap.")
-                        },
-                        label = { Text(if (cap == 8) "8 (One-Hand)" else "$cap") },
-                    )
-                }
+        Text(
+            text = "Grid Columns ($cols) & Rows ($rows)",
+            style = MaterialTheme.typography.labelLarge,
+            color = p.textPrimary,
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(4, 5, 6).forEach { colChoice ->
+                FilterChip(
+                    selected = cols == colChoice,
+                    onClick = {
+                        hasAdjustedGrid = true
+                        val updatedPages = LayoutSuggestionEngine.realignAllPages(
+                            pages = config.pages.map { pg ->
+                                pg.copy(header = pg.header.copy(columnSpan = colChoice))
+                            },
+                            globalMax = globalMax,
+                            columns = colChoice,
+                            rows = rows,
+                        )
+                        val updated = LayoutSuggestionEngine.syncCategoriesAndWidgetsFromPages(
+                            config.copy(
+                                pages = updatedPages,
+                                preferences = config.preferences.copy(gridColumns = colChoice),
+                            ),
+                        )
+                        onUpdateConfig(updated, "Grid set to ${colChoice}×${rows}.")
+                    },
+                    label = { Text("$colChoice Cols") },
+                )
             }
-            FlowRow(
-                modifier = Modifier.tutorialTarget(tutorialRegistry, "studio_builders"),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Button(onClick = { showTemplatePicker = true }) { Text("+ Suggested") }
-                OutlinedButton(onClick = { showCustomBuilder = true }) { Text("+ Custom") }
+            listOf(5, 6, 7).forEach { rowChoice ->
+                FilterChip(
+                    selected = rows == rowChoice,
+                    onClick = {
+                        hasAdjustedGrid = true
+                        val updatedPages = LayoutSuggestionEngine.realignAllPages(
+                            pages = config.pages,
+                            globalMax = globalMax,
+                            columns = cols,
+                            rows = rowChoice,
+                        )
+                        val updated = LayoutSuggestionEngine.syncCategoriesAndWidgetsFromPages(
+                            config.copy(
+                                pages = updatedPages,
+                                preferences = config.preferences.copy(gridRows = rowChoice),
+                            ),
+                        )
+                        onUpdateConfig(updated, "Grid set to ${cols}×${rowChoice}.")
+                    },
+                    label = { Text("$rowChoice Rows") },
+                )
+            }
+        }
+
+        Text(
+            text = "Max Apps / Items Per Layout: $globalMax (applies cleanly to new pages & Realign All)",
+            style = MaterialTheme.typography.labelLarge,
+            color = p.textPrimary,
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(4, 6, 8, 10, 12, 16).forEach { cap ->
+                FilterChip(
+                    selected = globalMax == cap,
+                    onClick = {
+                        hasAdjustedGrid = true
+                        val updated = config.copy(
+                            preferences = config.preferences.copy(defaultMaxItemsPerPage = cap),
+                        )
+                        onUpdateConfig(updated, "Global max items per layout set to $cap.")
+                    },
+                    label = { Text(if (cap == 8) "8 (One-Hand)" else "$cap") },
+                )
+            }
+        }
+        if (config.pages.isNotEmpty()) {
+            OutlinedButton(onClick = {
+                hasAdjustedGrid = true
+                val realigned = LayoutSuggestionEngine.realignAllPages(
+                    pages = config.pages,
+                    globalMax = globalMax,
+                    columns = cols,
+                    rows = rows,
+                )
+                val synced = LayoutSuggestionEngine.syncCategoriesAndWidgetsFromPages(config.copy(pages = realigned))
+                onUpdateConfig(synced, "Realigned all ${realigned.size} pages cleanly.")
+            }) { Text("Realign All Pages to ${cols}×${rows} (Max $globalMax)") }
+        }
+    }
+
+    // STEP 3: Layout Viewer, Wallpaper & Pages Builder
+    GuidedStepSection(
+        stepNumber = 3,
+        title = "Layout Viewer, Wallpaper & Pages Builder",
+        subtitle = step3Subtitle,
+        completed = step3Done,
+        expanded = forceExpandAllForTutorial || 3 in expandedSteps,
+        onToggle = { toggleStep(3) },
+    ) {
+        FlowRow(
+            modifier = Modifier.tutorialTarget(tutorialRegistry, "studio_builders"),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Button(onClick = { showTemplatePicker = true }) { Text("+ Suggested") }
+            OutlinedButton(onClick = { showCustomBuilder = true }) { Text("+ Custom") }
+            if (config.pages.isNotEmpty()) {
                 OutlinedButton(onClick = {
                     val realigned = LayoutSuggestionEngine.realignAllPages(
                         pages = config.pages,
@@ -227,89 +430,159 @@ fun LayoutsStudioTab(
                     val synced = LayoutSuggestionEngine.syncCategoriesAndWidgetsFromPages(config.copy(pages = realigned))
                     onUpdateConfig(synced, "Realigned all ${realigned.size} pages cleanly.")
                 }) { Text("Realign All") }
-                OutlinedButton(onClick = onExportHostLayout) { Text("Export Layout JSON") }
             }
         }
-    }
 
-    if (config.pages.isEmpty()) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = p.card),
-            border = BorderStroke(1.dp, p.border),
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+        if (config.pages.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = p.cardElevated),
+                border = BorderStroke(1.dp, p.border),
             ) {
-                Text("No layouts configured yet", style = MaterialTheme.typography.titleSmall, color = p.textPrimary)
-                Text(
-                    text = "Choose a Collection Preset above or tap + Suggested / + Custom to create your first layout.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = p.textMuted,
-                )
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text("No layouts configured yet", style = MaterialTheme.typography.titleSmall, color = p.textPrimary)
+                    Text(
+                        text = "Choose a Collection Preset in Step 1 or tap + Suggested / + Custom above to create your first layout.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = p.textMuted,
+                    )
+                }
+            }
+        } else {
+            LayoutViewerControlBar(
+                orientation = config.preferences.layoutViewOrientation,
+                showWallpaper = config.preferences.showWallpaperInPreview,
+                onChangeOrientation = { ori ->
+                    onUpdateConfig(
+                        config.copy(preferences = config.preferences.copy(layoutViewOrientation = ori)),
+                        "Switched Studio viewer to ${ori.replaceFirstChar { it.uppercase() }} mode.",
+                    )
+                },
+                onToggleWallpaper = { enabled ->
+                    onUpdateConfig(
+                        config.copy(preferences = config.preferences.copy(showWallpaperInPreview = enabled)),
+                        if (enabled) "Showing Studio previews with wallpaper." else "Showing clean Studio backdrop without wallpaper.",
+                    )
+                },
+                onOpenWallpaperPicker = {
+                    onOpenWallpaperPicker(sortedPages.firstOrNull { it.isDefaultHome } ?: sortedPages.firstOrNull())
+                },
+                tutorialRegistry = tutorialRegistry,
+            )
+
+            if (config.preferences.layoutViewOrientation == "horizontal") {
+                HorizontalPagesDeck(pages = sortedPages) { idx, pg ->
+                    StudioPageCard(
+                        idx = idx,
+                        pg = pg,
+                        sortedPages = sortedPages,
+                        config = config,
+                        wallpaperBitmap = wallpaperBitmap,
+                        onUpdateConfig = onUpdateConfig,
+                        onEditHeader = { editingHeaderPage = pg },
+                        onEditItems = {
+                            editingExistingPageId = pg.id
+                            activeSuggestionDraft = pageToDraft(pg, installedApps)
+                        },
+                    )
+                }
+            } else {
+                sortedPages.forEachIndexed { idx, pg ->
+                    StudioPageCard(
+                        idx = idx,
+                        pg = pg,
+                        sortedPages = sortedPages,
+                        config = config,
+                        wallpaperBitmap = wallpaperBitmap,
+                        onUpdateConfig = onUpdateConfig,
+                        onEditHeader = { editingHeaderPage = pg },
+                        onEditItems = {
+                            editingExistingPageId = pg.id
+                            activeSuggestionDraft = pageToDraft(pg, installedApps)
+                        },
+                    )
+                }
             }
         }
     }
 
-    val sortedPages = config.pages.sortedBy { it.order }
-    if (sortedPages.isNotEmpty()) {
-        LayoutViewerControlBar(
-            orientation = config.preferences.layoutViewOrientation,
-            showWallpaper = config.preferences.showWallpaperInPreview,
-            onChangeOrientation = { ori ->
-                onUpdateConfig(
-                    config.copy(preferences = config.preferences.copy(layoutViewOrientation = ori)),
-                    "Switched Studio viewer to ${ori.replaceFirstChar { it.uppercase() }} mode.",
-                )
+    // STEP 4: Save Draft, Apply / Mark Applied & Export JSON
+    GuidedStepSection(
+        stepNumber = 4,
+        title = "Save Draft, Apply / Mark Applied & Export JSON",
+        subtitle = step4Subtitle,
+        completed = step4Done,
+        expanded = forceExpandAllForTutorial || 4 in expandedSteps,
+        onToggle = { toggleStep(4) },
+    ) {
+        Text(
+            text = "All Studio layouts are stored declaratively as JSON. Save a work-in-progress Draft, mark this setup Applied (retaining a full snapshot in your Archive), or export Host DesiredLayout JSON.",
+            style = MaterialTheme.typography.bodySmall,
+            color = p.textSecondary,
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Button(
+                onClick = { showApplySnapshotDialog = true },
+                enabled = config.pages.isNotEmpty(),
+            ) {
+                Text("Apply / Mark Applied")
+            }
+            OutlinedButton(
+                onClick = { showSaveDraftDialog = true },
+                enabled = config.pages.isNotEmpty(),
+            ) {
+                Text("Save JSON Draft")
+            }
+            OutlinedButton(
+                onClick = onExportHostLayout,
+                enabled = config.pages.isNotEmpty(),
+            ) {
+                Text("Export Layout JSON")
+            }
+            OutlinedButton(onClick = onOpenArchive) {
+                Text("Archive (${archiveEntries.size})")
+            }
+        }
+    }
+
+    if (showSaveDraftDialog) {
+        SaveSnapshotDialog(
+            title = "Save Studio JSON Draft",
+            defaultName = HomeStudioStore.defaultSnapshotTitle(
+                kind = LayoutSnapshotKind.DRAFT,
+                config = config,
+                epochMs = System.currentTimeMillis(),
+            ),
+            confirmLabel = "Save Draft",
+            onDismiss = { showSaveDraftDialog = false },
+            onConfirm = { name, notes ->
+                showSaveDraftDialog = false
+                onSaveDraft(name, notes)
             },
-            onToggleWallpaper = { enabled ->
-                onUpdateConfig(
-                    config.copy(preferences = config.preferences.copy(showWallpaperInPreview = enabled)),
-                    if (enabled) "Showing Studio previews with wallpaper." else "Showing clean Studio backdrop without wallpaper.",
-                )
-            },
-            onOpenWallpaperPicker = {
-                onOpenWallpaperPicker(sortedPages.firstOrNull { it.isDefaultHome } ?: sortedPages.firstOrNull())
-            },
-            tutorialRegistry = tutorialRegistry,
         )
     }
 
-    if (config.preferences.layoutViewOrientation == "horizontal" && sortedPages.isNotEmpty()) {
-        HorizontalPagesDeck(pages = sortedPages) { idx, pg ->
-            StudioPageCard(
-                idx = idx,
-                pg = pg,
-                sortedPages = sortedPages,
+    if (showApplySnapshotDialog) {
+        SaveSnapshotDialog(
+            title = "Apply & Archive Layout Snapshot",
+            defaultName = HomeStudioStore.defaultSnapshotTitle(
+                kind = LayoutSnapshotKind.APPLIED,
                 config = config,
-                installedApps = installedApps,
-                wallpaperBitmap = wallpaperBitmap,
-                onUpdateConfig = onUpdateConfig,
-                onEditHeader = { editingHeaderPage = pg },
-                onEditItems = {
-                    editingExistingPageId = pg.id
-                    activeSuggestionDraft = pageToDraft(pg, installedApps)
-                },
-            )
-        }
-    } else {
-        sortedPages.forEachIndexed { idx, pg ->
-            StudioPageCard(
-                idx = idx,
-                pg = pg,
-                sortedPages = sortedPages,
-                config = config,
-                installedApps = installedApps,
-                wallpaperBitmap = wallpaperBitmap,
-                onUpdateConfig = onUpdateConfig,
-                onEditHeader = { editingHeaderPage = pg },
-                onEditItems = {
-                    editingExistingPageId = pg.id
-                    activeSuggestionDraft = pageToDraft(pg, installedApps)
-                },
-            )
-        }
+                epochMs = System.currentTimeMillis(),
+            ),
+            confirmLabel = "Confirm Applied",
+            onDismiss = { showApplySnapshotDialog = false },
+            onConfirm = { name, notes ->
+                showApplySnapshotDialog = false
+                onApplySnapshot(name, notes)
+            },
+        )
     }
 
     if (showTemplatePicker) {
@@ -436,6 +709,111 @@ fun LayoutsStudioTab(
     }
 }
 
+@Composable
+private fun GuidedStepSection(
+    stepNumber: Int,
+    title: String,
+    subtitle: String,
+    completed: Boolean,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val p = LocalStudioPalette.current
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .animateContentSize(spring(dampingRatio = 0.84f, stiffness = 360f)),
+        colors = CardDefaults.cardColors(containerColor = if (expanded) p.cardTint else p.card),
+        border = BorderStroke(
+            1.dp,
+            when {
+                expanded -> p.accent.copy(alpha = 0.55f)
+                completed -> p.positive.copy(alpha = 0.4f)
+                else -> p.border
+            },
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onToggle),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .background(
+                            color = if (completed) p.positiveSurface else p.cardElevated,
+                            shape = RoundedCornerShape(999.dp),
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (completed) p.positive.copy(alpha = 0.55f) else p.border,
+                            shape = RoundedCornerShape(999.dp),
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = if (completed) "✓" else "$stepNumber",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (completed) p.positiveText else p.textSecondary,
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "Step $stepNumber • $title",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = p.textPrimary,
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (completed) p.secondaryAccent else p.textMuted,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .background(p.cardElevated, RoundedCornerShape(999.dp))
+                        .padding(horizontal = 9.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        text = if (expanded) "Hide ▴" else "Edit ▾",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = p.textSecondary,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
+
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically(spring(dampingRatio = 0.85f, stiffness = 360f)) + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    content()
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun StudioPageCard(
@@ -443,7 +821,6 @@ private fun StudioPageCard(
     pg: StudioPage,
     sortedPages: List<StudioPage>,
     config: HomeStudioConfig,
-    installedApps: List<InstalledAppInfo>,
     wallpaperBitmap: Bitmap?,
     onUpdateConfig: (HomeStudioConfig, String) -> Unit,
     onEditHeader: () -> Unit,

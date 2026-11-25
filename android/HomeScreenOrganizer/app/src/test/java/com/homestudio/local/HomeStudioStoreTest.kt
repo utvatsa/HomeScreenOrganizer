@@ -10,16 +10,23 @@ import com.homestudio.local.data.HomeStudioStore
 import com.homestudio.local.data.LayoutFolderChild
 import com.homestudio.local.data.LayoutPreferences
 import com.homestudio.local.data.LayoutSlotItem
+import com.homestudio.local.data.LayoutSnapshotKind
 import com.homestudio.local.data.StudioPage
 import com.homestudio.local.data.WidgetInstanceConfig
 import com.homestudio.local.planner.LayoutSuggestionEngine
 import com.homestudio.local.planner.PresetKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 class HomeStudioStoreTest {
+
+    @get:Rule
+    val tempFolder = TemporaryFolder()
     @Test
     fun roundTripConfigJson() {
         val original = HomeStudioConfig(
@@ -188,5 +195,144 @@ class HomeStudioStoreTest {
         assertEquals(1, snap.pages[1].items.size)
         assertEquals("Google Suite", snap.pages[1].items[0].label)
         assertEquals(1, snap.pages[1].items[0].children.size)
+    }
+
+    @Test
+    fun saveDraftAndReloadIntoStudioPreservesAppChrome() {
+        val store = HomeStudioStore(tempFolder.newFolder("drafts"))
+        val draftConfig = HomeStudioConfig(
+            globalTheme = HeaderTheme(fontSizeSp = 30f, alignment = "center"),
+            preferences = LayoutPreferences(
+                defaultMaxItemsPerPage = 6,
+                gridColumns = 5,
+                gridRows = 7,
+                activePresetId = "balanced",
+                appThemeMode = "light",
+                appColorTheme = "warm-paper",
+                hasCompletedTutorial = false,
+            ),
+            pages = listOf(
+                StudioPage(id = "daily", title = "Daily Essentials", order = 0, isDefaultHome = true),
+                StudioPage(id = "wallpaper", title = "Wallpaper", order = 1, isWallpaperPage = true),
+            ),
+        )
+
+        val savedDraft = store.saveDraft(
+            config = draftConfig,
+            name = "Weekend Draft",
+            notes = "Compact 5x7 test",
+            nowEpochMs = 1_700_000_001_000L,
+        )
+        assertEquals(LayoutSnapshotKind.DRAFT, savedDraft.kind)
+        assertFalse(savedDraft.isActive)
+        assertEquals(2, savedDraft.pageCount)
+        assertEquals("Daily Essentials", savedDraft.defaultHomeTitle)
+        assertEquals("5×7 • Max 6", savedDraft.gridSummary)
+
+        val liveChromeConfig = HomeStudioConfig(
+            preferences = LayoutPreferences(
+                defaultMaxItemsPerPage = 8,
+                gridColumns = 4,
+                gridRows = 6,
+                appThemeMode = "dark",
+                appColorTheme = "pacific-cobalt",
+                syncLauncherIcon = false,
+                hasCompletedTutorial = true,
+            ),
+            pages = listOf(StudioPage(id = "other", title = "Other", order = 0)),
+        )
+
+        val loaded = store.loadSnapshotIntoStudio(savedDraft.id, liveChromeConfig)
+        assertNotNull(loaded)
+        val restored = loaded!!.first
+        assertEquals(2, restored.pages.size)
+        assertEquals("Daily Essentials", restored.pages[0].title)
+        assertEquals(5, restored.preferences.gridColumns)
+        assertEquals(7, restored.preferences.gridRows)
+        assertEquals(6, restored.preferences.defaultMaxItemsPerPage)
+        assertEquals(30f, restored.globalTheme.fontSizeSp)
+        // App chrome settings remain untouched on draft reload
+        assertEquals("dark", restored.preferences.appThemeMode)
+        assertEquals("pacific-cobalt", restored.preferences.appColorTheme)
+        assertFalse(restored.preferences.syncLauncherIcon)
+        assertTrue(restored.preferences.hasCompletedTutorial)
+    }
+
+    @Test
+    fun applyRetainsChronologicalSnapshotsWithoutOverwriting() {
+        val store = HomeStudioStore(tempFolder.newFolder("applied"))
+        val v1 = HomeStudioConfig(
+            preferences = LayoutPreferences(activePresetId = "brief"),
+            pages = listOf(StudioPage(id = "p1", title = "Brief Home", order = 0, isDefaultHome = true)),
+        )
+        val v2 = HomeStudioConfig(
+            preferences = LayoutPreferences(activePresetId = "balanced"),
+            pages = listOf(
+                StudioPage(id = "p1", title = "Most Used", order = 0),
+                StudioPage(id = "p2", title = "Daily Essentials", order = 1, isDefaultHome = true),
+            ),
+        )
+
+        val first = store.recordAppliedSnapshot(v1, name = "Brief Setup", nowEpochMs = 1_700_000_010_000L)
+        val second = store.recordAppliedSnapshot(v2, name = "Balanced Setup", nowEpochMs = 1_700_000_020_000L)
+
+        val archive = store.loadArchive()
+        assertEquals(2, archive.size)
+        assertEquals(second.id, archive.first { it.isActive }.id)
+        assertEquals(1, archive.count { it.isActive })
+        assertTrue(archive.any { it.id == first.id && !it.isActive && it.pageCount == 1 })
+        assertTrue(archive.any { it.id == second.id && it.isActive && it.pageCount == 2 })
+        assertTrue(HomeStudioStore.configMatchesEntry(store.load(), second))
+    }
+
+    @Test
+    fun switchActiveSnapshotAndManageNonActiveDrafts() {
+        val store = HomeStudioStore(tempFolder.newFolder("switch"))
+        val briefCfg = HomeStudioConfig(
+            preferences = LayoutPreferences(activePresetId = "brief", appThemeMode = "dark", hasCompletedTutorial = true),
+            pages = listOf(StudioPage(id = "p1", title = "Brief Home", order = 0, isDefaultHome = true)),
+        )
+        val detailedCfg = HomeStudioConfig(
+            preferences = LayoutPreferences(activePresetId = "detailed", appThemeMode = "dark", hasCompletedTutorial = true),
+            pages = listOf(
+                StudioPage(id = "p1", title = "Most Used", order = 0),
+                StudioPage(id = "p2", title = "Daily Essentials", order = 1, isDefaultHome = true),
+                StudioPage(id = "p3", title = "Payments", order = 2),
+            ),
+        )
+        val draftCfg = HomeStudioConfig(
+            preferences = LayoutPreferences(activePresetId = null, defaultMaxItemsPerPage = 10),
+            pages = listOf(StudioPage(id = "custom", title = "Weekend", order = 0, isDefaultHome = true)),
+        )
+
+        val applied1 = store.recordAppliedSnapshot(briefCfg, name = "Brief v1", nowEpochMs = 1_700_000_100_000L)
+        val applied2 = store.recordAppliedSnapshot(detailedCfg, name = "Detailed v2", nowEpochMs = 1_700_000_200_000L)
+        val draft = store.saveDraft(draftCfg, name = "Weekend Draft", nowEpochMs = 1_700_000_300_000L)
+
+        // Switch back to older applied snapshot cleanly without losing history
+        val switchedTo1 = store.switchActiveSnapshot(applied1.id, detailedCfg, nowEpochMs = 1_700_000_400_000L)
+        assertNotNull(switchedTo1)
+        assertEquals(1, switchedTo1!!.first.pages.size)
+        val afterSwitchArchive = store.loadArchive()
+        assertEquals(3, afterSwitchArchive.size)
+        assertTrue(afterSwitchArchive.first { it.id == applied1.id }.isActive)
+        assertFalse(afterSwitchArchive.first { it.id == applied2.id }.isActive)
+
+        // Cannot delete active snapshot or applied history; can rename & delete non-active draft
+        assertFalse(store.deleteDraft(applied1.id))
+        assertFalse(store.deleteDraft(applied2.id))
+        assertTrue(store.renameArchiveEntry(draft.id, "Weekend Draft Renamed", nowEpochMs = 1_700_000_500_000L))
+        assertEquals("Weekend Draft Renamed", store.loadArchive().first { it.id == draft.id }.name)
+
+        // Reapply draft -> creates new active applied snapshot while keeping draft intact
+        val appliedFromDraft = store.switchActiveSnapshot(draft.id, switchedTo1.first, nowEpochMs = 1_700_000_600_000L)
+        assertNotNull(appliedFromDraft)
+        assertTrue(appliedFromDraft!!.second.isActive)
+        assertEquals(LayoutSnapshotKind.APPLIED, appliedFromDraft.second.kind)
+        assertEquals(4, store.loadArchive().size)
+
+        // Delete non-active draft cleanly
+        assertTrue(store.deleteDraft(draft.id))
+        assertEquals(3, store.loadArchive().size)
     }
 }

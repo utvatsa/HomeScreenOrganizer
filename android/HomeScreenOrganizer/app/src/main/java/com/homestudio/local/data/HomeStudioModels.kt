@@ -175,3 +175,28 @@ data class HomeStudioConfig(
         )
     }
 }
+
+enum class LayoutSnapshotKind {
+    DRAFT,
+    APPLIED;
+
+    companion object {
+        fun fromString(raw: String): LayoutSnapshotKind =
+            entries.firstOrNull { it.name.equals(raw, ignoreCase = true) } ?: DRAFT
+    }
+}
+
+data class LayoutArchiveEntry(
+    val id: String,
+    val name: String,
+    val kind: LayoutSnapshotKind,
+    val createdAtEpochMs: Long,
+    val updatedAtEpochMs: Long = createdAtEpochMs,
+    val isActive: Boolean = false,
+    val pageCount: Int = 0,
+    val defaultHomeTitle: String? = null,
+    val presetId: String? = null,
+    val gridSummary: String = "4×6 • Max 8",
+    val notes: String? = null,
+    val config: HomeStudioConfig,
+)

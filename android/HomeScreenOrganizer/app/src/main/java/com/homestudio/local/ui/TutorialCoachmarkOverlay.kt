@@ -111,8 +111,8 @@ val VERBOSE_TUTORIAL_STEPS: List<TutorialStepSpec> = listOf(
         dest = OrganizerDest.STUDIO,
         targetKey = "hamburger_btn",
         category = "Menu • Hamburger Drawer",
-        title = "Settings, Setup Checklist, Guide & Replay",
-        description = "Tap the circular ≡ button anytime to open the navigation drawer. Inside you'll find Settings & Header Theme (Light / Dark / System mode + typography), Setup & Companion App Readiness, the User Guide, Interactive Tutorial replay, and About (utvatsa/HomeScreenOrganizer).",
+        title = "Archive, Themes, Checklist, Guide & Replay",
+        description = "Tap the circular ≡ button anytime to open the navigation drawer. Inside you'll find Saved & Applied Layouts (JSON drafts & snapshot history), App Themes & Icon, Settings & Header Theme, Setup Checklist, User Guide, Interactive Tutorial replay, and About (utvatsa/HomeScreenOrganizer).",
     ),
     TutorialStepSpec(
         id = "presets_onehand",
