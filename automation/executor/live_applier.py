@@ -106,12 +106,13 @@ class LiveApplier:
             return
         # Fast jump via Home Edit Mode page indicator dots
         self._enter_edit_mode_safe()
-        out = self.adb.shell("dumpsys activity top | grep -A 75 'workspace_page_indicator'", check=False)
-        m_ll = re.search(r"workspace_page_indicator[^\n]*\n\s+android\.widget\.LinearLayout\{[^\}]+\s+(\d+),(\d+)-(\d+),(\d+)\}", out)
+        out = self.adb.shell("dumpsys activity top | grep -A 120 'workspace_page_indicator'", check=False)
+        m_ll = re.search(r"workspace_page_indicator[^\n]*\n\s+android\.widget\.LinearLayout\{[^\}]+\s+(\d+),(\d+)-(\d+),(\d+)[^\}]*\}", out)
         if m_ll:
-            ll_left = int(m_ll.group(1))
-            dot_x = ll_left + pnum_1based * 50 + 25
-            dot_y = 1874
+            ll_left, ll_top, ll_right, ll_bottom = int(m_ll.group(1)), int(m_ll.group(2)), int(m_ll.group(3)), int(m_ll.group(4))
+            dot_w = max(30.0, (ll_right - ll_left) / max(1, total + 1))
+            dot_x = int(ll_left + (pnum_1based + 0.5) * dot_w)
+            dot_y = (ll_top + ll_bottom) // 2 if ll_top > 500 else 1874
             self.adb.tap(dot_x, dot_y)
             time.sleep(0.6)
             self.adb.tap(540, 950)
