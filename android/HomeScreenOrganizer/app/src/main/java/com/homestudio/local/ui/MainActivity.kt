@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -112,6 +113,7 @@ enum class OrganizerDest(val title: String) {
     STUDIO("Studio"),
     CURRENT("Current"),
     CATALOG("Catalog"),
+    THEMES("App Themes & Icon"),
     SETTINGS("Settings"),
     SETUP("Setup"),
     GUIDE("Guide"),
@@ -171,7 +173,10 @@ private fun HomeOrganizerRoot(store: HomeStudioStore, startDestName: String?) {
         mutableStateOf(normalized)
     }
 
-    HomeOrganizerTheme(themeMode = config.preferences.appThemeMode) {
+    HomeOrganizerTheme(
+        themeId = config.preferences.appColorTheme,
+        themeMode = config.preferences.appThemeMode,
+    ) {
         HomeOrganizerApp(
             store = store,
             catalog = catalog,
@@ -203,6 +208,7 @@ private fun HomeOrganizerApp(
         explicit ?: if (!initialReadiness.allRequiredReady) OrganizerDest.SETUP else OrganizerDest.STUDIO
     }
     var dest by remember { mutableStateOf(startAtSetup) }
+    var previousDest by remember { mutableStateOf(OrganizerDest.STUDIO) }
     var isFirstRunGate by remember { mutableStateOf(!initialReadiness.allRequiredReady) }
 
     var installedApps by remember(config.customApps) {
@@ -402,6 +408,18 @@ private fun HomeOrganizerApp(
                     HorizontalDivider(color = p.border, modifier = Modifier.padding(vertical = 4.dp))
                     Text("SYSTEM & PREFERENCES", style = MaterialTheme.typography.labelSmall, color = p.textMuted, modifier = Modifier.padding(start = 8.dp))
 
+                    val activeThemeSpec = findThemeSpec(config.preferences.appColorTheme)
+                    DrawerNavItem(
+                        label = "App Themes & Icon",
+                        badge = activeThemeSpec.numberLabel,
+                        badgePositive = true,
+                        selected = dest == OrganizerDest.THEMES,
+                        onClick = {
+                            if (dest != OrganizerDest.THEMES) previousDest = dest
+                            dest = OrganizerDest.THEMES
+                            scope.launch { drawerState.close() }
+                        },
+                    )
                     DrawerNavItem(
                         label = "Settings & Theme",
                         badge = config.preferences.appThemeMode.replaceFirstChar { it.uppercase() },
@@ -697,6 +715,10 @@ private fun HomeOrganizerApp(
                                     CategoryHeaderWidgetProvider.updateAll(context)
                                     statusMsg = msg
                                 },
+                                onOpenThemes = {
+                                    previousDest = OrganizerDest.SETTINGS
+                                    dest = OrganizerDest.THEMES
+                                },
                                 onOpenTools = { showToolsDialog = true },
                                 onOpenWallpaperPicker = {
                                     wallpaperPreviewPage = config.pages.firstOrNull { it.isDefaultHome }
@@ -742,7 +764,11 @@ private fun HomeOrganizerApp(
 
                             OrganizerDest.GUIDE -> GuideTab()
 
-                            OrganizerDest.ABOUT -> AboutTab()
+                            OrganizerDest.ABOUT -> AboutTab(
+                                iconResId = findThemeSpec(config.preferences.appColorTheme).iconMipmapRes,
+                            )
+
+                            OrganizerDest.THEMES -> Unit
                         }
                     }
                 }
@@ -799,7 +825,43 @@ private fun HomeOrganizerApp(
         )
     }
 
-    BrandSplashOverlay(visible = showSplash)
+    if (dest == OrganizerDest.THEMES) {
+        BackHandler { dest = previousDest }
+        ThemeSwitcherScreen(
+            currentThemeId = config.preferences.appColorTheme,
+            currentMode = config.preferences.appThemeMode,
+            currentSyncIcon = config.preferences.syncLauncherIcon,
+            onBack = { dest = previousDest },
+            onApplyTheme = { chosenThemeId, chosenMode, syncIcon ->
+                val spec = findThemeSpec(chosenThemeId)
+                val updated = config.copy(
+                    preferences = config.preferences.copy(
+                        appColorTheme = chosenThemeId,
+                        appThemeMode = chosenMode,
+                        syncLauncherIcon = syncIcon,
+                    ),
+                )
+                store.save(updated)
+                onConfigChange(updated)
+                val iconChanged = if (syncIcon) {
+                    IconSwitcher.applyLauncherIconForTheme(context, chosenThemeId)
+                } else {
+                    false
+                }
+                dest = previousDest
+                statusMsg = if (syncIcon && iconChanged) {
+                    "Applied ${spec.title} (${spec.numberLabel}) & updated app icon background."
+                } else {
+                    "Applied ${spec.title} (${spec.numberLabel}) theme."
+                }
+            },
+        )
+    }
+
+    BrandSplashOverlay(
+        visible = showSplash,
+        iconResId = findThemeSpec(config.preferences.appColorTheme).iconMipmapRes,
+    )
     }
 
     if (showWallpaperDialog) {
@@ -995,12 +1057,14 @@ private fun OneUi9FloatingBottomDock(
 private fun SettingsAndThemeTab(
     config: HomeStudioConfig,
     onUpdate: (HomeStudioConfig, String) -> Unit,
+    onOpenThemes: () -> Unit,
     onOpenTools: () -> Unit,
     onOpenWallpaperPicker: () -> Unit,
 ) {
     val context = LocalContext.current
     val p = LocalStudioPalette.current
     val t = config.globalTheme
+    val activeThemeSpec = findThemeSpec(config.preferences.appColorTheme)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1011,12 +1075,15 @@ private fun SettingsAndThemeTab(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("App Appearance (Light / Dark Mode)", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
+            Text("App Theme, Colors & Icon", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
             Text(
-                text = "Switch between crisp Light, Obsidian Dark, or match your Android system setting.",
+                text = "Active Theme: ${activeThemeSpec.numberLabel} ${activeThemeSpec.title} • Styles only HomeScreenOrganizer's app UI & launcher icon; your actual One UI home screen layout and Studio canvas stay neutral and vivid.",
                 style = MaterialTheme.typography.bodySmall,
                 color = p.textSecondary,
             )
+            Button(onClick = onOpenThemes, modifier = Modifier.fillMaxWidth()) {
+                Text("Open Full-Screen Theme Studio")
+            }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("system" to "System Default", "light" to "Light Mode", "dark" to "Dark Mode").forEach { (id, label) ->
                     FilterChip(

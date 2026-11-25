@@ -38,6 +38,8 @@ class HomeStudioStoreTest {
                 onboardingCompleted = true,
                 activePresetId = "balanced",
                 appThemeMode = "light",
+                appColorTheme = "copper-espresso",
+                syncLauncherIcon = false,
                 layoutViewOrientation = "horizontal",
                 showWallpaperInPreview = false,
                 activeWallpaperSource = "preset:oneui-bloom",
@@ -77,6 +79,8 @@ class HomeStudioStoreTest {
         assertEquals(22f, restored.widgets[42]?.fontSizeSp)
         assertEquals(6, restored.preferences.defaultMaxItemsPerPage)
         assertEquals("light", restored.preferences.appThemeMode)
+        assertEquals("copper-espresso", restored.preferences.appColorTheme)
+        assertFalse(restored.preferences.syncLauncherIcon)
         assertEquals("horizontal", restored.preferences.layoutViewOrientation)
         assertFalse(restored.preferences.showWallpaperInPreview)
         assertEquals("preset:oneui-bloom", restored.preferences.activeWallpaperSource)

@@ -131,6 +131,8 @@ data class LayoutPreferences(
     val onboardingCompleted: Boolean = false,
     val activePresetId: String? = null,
     val appThemeMode: String = "system", // system | light | dark
+    val appColorTheme: String = "warm-paper", // warm-paper | samsung-blue | nordic-olive | copper-espresso | pacific-cobalt | sunlit-ochre | arctic-chrome
+    val syncLauncherIcon: Boolean = true,
     val layoutViewOrientation: String = "vertical", // vertical | horizontal
     val showWallpaperInPreview: Boolean = true,
     val activeWallpaperSource: String = "device", // device | gallery | preset:<id>
