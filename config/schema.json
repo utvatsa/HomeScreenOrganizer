@@ -1,0 +1,492 @@
+{
+  "$defs": {
+    "DockConfig": {
+      "properties": {
+        "mode": {
+          "default": "preserve",
+          "enum": [
+            "preserve",
+            "custom"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/PageItemSpec"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "title": "DockConfig",
+      "type": "object"
+    },
+    "FolderChildSpec": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "packageName": {
+          "title": "Packagename",
+          "type": "string"
+        },
+        "activityName": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Activityname"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "profileId": {
+          "default": 0,
+          "title": "Profileid",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "packageName",
+        "label"
+      ],
+      "title": "FolderChildSpec",
+      "type": "object"
+    },
+    "GridSpec": {
+      "properties": {
+        "columns": {
+          "maximum": 7,
+          "minimum": 3,
+          "title": "Columns",
+          "type": "integer"
+        },
+        "rows": {
+          "anyOf": [
+            {
+              "maximum": 8,
+              "minimum": 4,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 6,
+          "title": "Rows"
+        }
+      },
+      "required": [
+        "columns"
+      ],
+      "title": "GridSpec",
+      "type": "object"
+    },
+    "HeaderInstanceConfig": {
+      "properties": {
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "inheritTheme": {
+          "default": true,
+          "title": "Inherittheme",
+          "type": "boolean"
+        },
+        "subtitle": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subtitle"
+        },
+        "position": {
+          "$ref": "#/$defs/PositionSpec"
+        },
+        "overrides": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Overrides"
+        }
+      },
+      "title": "HeaderInstanceConfig",
+      "type": "object"
+    },
+    "HeaderTheme": {
+      "properties": {
+        "fontFamily": {
+          "default": "sans-serif",
+          "title": "Fontfamily",
+          "type": "string"
+        },
+        "fontWeight": {
+          "default": 300,
+          "title": "Fontweight",
+          "type": "integer"
+        },
+        "fontSizeSp": {
+          "default": 24.0,
+          "title": "Fontsizesp",
+          "type": "number"
+        },
+        "textColor": {
+          "default": "#FFFFFFFF",
+          "title": "Textcolor",
+          "type": "string"
+        },
+        "opacity": {
+          "default": 0.92,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Opacity",
+          "type": "number"
+        },
+        "alignment": {
+          "default": "start",
+          "enum": [
+            "start",
+            "center",
+            "end"
+          ],
+          "title": "Alignment",
+          "type": "string"
+        },
+        "backgroundColor": {
+          "default": "#00000000",
+          "title": "Backgroundcolor",
+          "type": "string"
+        },
+        "paddingDp": {
+          "default": 10,
+          "title": "Paddingdp",
+          "type": "integer"
+        },
+        "letterSpacing": {
+          "default": 0.04,
+          "title": "Letterspacing",
+          "type": "number"
+        },
+        "showSeparator": {
+          "default": false,
+          "title": "Showseparator",
+          "type": "boolean"
+        },
+        "separatorColor": {
+          "default": "#40FFFFFF",
+          "title": "Separatorcolor",
+          "type": "string"
+        },
+        "shadowEnabled": {
+          "default": false,
+          "title": "Shadowenabled",
+          "type": "boolean"
+        }
+      },
+      "title": "HeaderTheme",
+      "type": "object"
+    },
+    "LauncherConfig": {
+      "properties": {
+        "type": {
+          "default": "samsung-one-ui",
+          "title": "Type",
+          "type": "string"
+        },
+        "preserveExistingWallpaper": {
+          "default": true,
+          "title": "Preserveexistingwallpaper",
+          "type": "boolean"
+        },
+        "grid": {
+          "$ref": "#/$defs/GridSpec"
+        }
+      },
+      "title": "LauncherConfig",
+      "type": "object"
+    },
+    "PageItemSpec": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "app",
+            "pinned_shortcut",
+            "folder",
+            "header_widget",
+            "widget",
+            "placeholder_widget"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "packageName": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Packagename"
+        },
+        "activityName": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Activityname"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider"
+        },
+        "profileId": {
+          "default": 0,
+          "title": "Profileid",
+          "type": "integer"
+        },
+        "position": {
+          "$ref": "#/$defs/PositionSpec"
+        },
+        "children": {
+          "items": {
+            "$ref": "#/$defs/FolderChildSpec"
+          },
+          "title": "Children",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "position"
+      ],
+      "title": "PageItemSpec",
+      "type": "object"
+    },
+    "PageSpec": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "order": {
+          "minimum": 0,
+          "title": "Order",
+          "type": "integer"
+        },
+        "isDefaultHome": {
+          "default": false,
+          "title": "Isdefaulthome",
+          "type": "boolean"
+        },
+        "retainEmptyPage": {
+          "default": false,
+          "title": "Retainemptypage",
+          "type": "boolean"
+        },
+        "header": {
+          "$ref": "#/$defs/HeaderInstanceConfig"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/PageItemSpec"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "order"
+      ],
+      "title": "PageSpec",
+      "type": "object"
+    },
+    "PositionSpec": {
+      "properties": {
+        "row": {
+          "minimum": 0,
+          "title": "Row",
+          "type": "integer"
+        },
+        "column": {
+          "minimum": 0,
+          "title": "Column",
+          "type": "integer"
+        },
+        "rowSpan": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Rowspan",
+          "type": "integer"
+        },
+        "columnSpan": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Columnspan",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "row",
+        "column"
+      ],
+      "title": "PositionSpec",
+      "type": "object"
+    },
+    "ThemeConfig": {
+      "properties": {
+        "header": {
+          "$ref": "#/$defs/HeaderTheme"
+        }
+      },
+      "title": "ThemeConfig",
+      "type": "object"
+    },
+    "WallpaperConfig": {
+      "properties": {
+        "mode": {
+          "default": "preserve",
+          "enum": [
+            "preserve",
+            "custom"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        },
+        "checksum": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Checksum"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Type"
+        }
+      },
+      "title": "WallpaperConfig",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "schemaVersion": {
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "launcher": {
+      "$ref": "#/$defs/LauncherConfig"
+    },
+    "theme": {
+      "$ref": "#/$defs/ThemeConfig"
+    },
+    "wallpaper": {
+      "$ref": "#/$defs/WallpaperConfig"
+    },
+    "dock": {
+      "$ref": "#/$defs/DockConfig"
+    },
+    "pages": {
+      "items": {
+        "$ref": "#/$defs/PageSpec"
+      },
+      "title": "Pages",
+      "type": "array"
+    }
+  },
+  "title": "DesiredLayout",
+  "type": "object"
+}

@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "launcher": {
+    "packageName": "com.sec.android.app.launcher",
+    "grid": {
+      "columns": 4,
+      "rows": 6
+    },
+    "dockPreserved": true
+  },
+  "wallpaper": {
+    "strategy": "retain_existing",
+    "dedicatedPageId": "wallpaper"
+  },
+  "theme": {
+    "header": {
+      "fontFamily": "sans-serif-light",
+      "fontWeight": 300,
+      "fontSizeSp": 24.0,
+      "textColor": "#F5F7FA",
+      "opacity": 0.92,
+      "alignment": "start",
+      "backgroundColor": "#00000000",
+      "paddingDp": 8,
+      "letterSpacing": 0.04,
+      "showSeparator": false,
+      "separatorColor": "#33FFFFFF",
+      "shadowEnabled": false
+    }
+  },
+  "pages": [
+    {
+      "id": "most-used",
+      "title": "Most Used",
+      "order": 0,
+      "isDefaultHome": false,
+      "header": {
+        "enabled": true,
+        "inheritTheme": true,
+        "position": { "row": 0, "column": 0, "rowSpan": 1, "columnSpan": 4 }
+      },
+      "items": []
+    },
+    {
+      "id": "daily-essentials",
+      "title": "Daily Essentials",
+      "order": 1,
+      "isDefaultHome": true,
+      "header": {
+        "enabled": true,
+        "inheritTheme": true,
+        "position": { "row": 0, "column": 0, "rowSpan": 1, "columnSpan": 4 }
+      },
+      "items": []
+    },
+    {
+      "id": "wallpaper",
+      "title": null,
+      "order": 2,
+      "isDefaultHome": false,
+      "header": {
+        "enabled": false,
+        "inheritTheme": true,
+        "position": { "row": 0, "column": 0, "rowSpan": 1, "columnSpan": 4 }
+      },
+      "items": []
+    }
+  ],
+  "dock": {
+    "preserveExisting": true,
+    "items": []
+  }
+}

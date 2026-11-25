@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Home Studio</string>
+    <string name="widget_config_title">Configure Category Header</string>
+    <string name="header_widget_label">Category Header</string>
+    <string name="header_widget_description">Transparent configurable category heading widget</string>
+    <string name="placeholder_widget_label">Wallpaper Spacer</string>
+    <string name="placeholder_1x1_label">Wallpaper Spacer 1x1</string>
+    <string name="placeholder_widget_description">Invisible transparent placeholder for keeping a wallpaper page</string>
+</resources>
