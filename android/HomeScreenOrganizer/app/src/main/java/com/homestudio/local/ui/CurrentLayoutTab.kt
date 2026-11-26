@@ -132,6 +132,7 @@ fun CurrentLayoutTab(
         onChangeOrientation = onChangeOrientation,
         onToggleWallpaper = onToggleWallpaper,
         onOpenWallpaperPicker = onOpenWallpaperPicker,
+        wallpaperBitmap = wallpaperBitmap,
     )
 
     if (snapshot.pages.isEmpty()) {

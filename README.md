@@ -1,6 +1,6 @@
 # HomeScreenOrganizer
 
-Autonomous, declarative Android home screen management, intelligent layout studio, transparent Category Header widgets, and One UI layout automation (`v1.0.0`).
+Autonomous, declarative Android home screen management, intelligent layout studio, transparent Category Header widgets, and One UI layout automation (`v1.1.0`).
 
 > **Platform Note (Android Only):** **HomeScreenOrganizer** is built exclusively for **Android 12+ (API 31+)** and tailored for **Samsung One UI Home**. iOS and non-Android launchers are not supported. (The Android package retains internal ID `com.homestudio.local` for seamless upgrades with active home-screen widgets.)
 
@@ -14,7 +14,11 @@ Open the app's **Setup** tab (or run `.venv/bin/homescreenorganizer checklist`) 
 4. **Samsung Smart Switch** (`com.sec.android.easyMover`, free) — Optional safety backup for launcher/device state.
 5. **KWGT Kustom Widget Maker** (`org.kustom.widget`, Free edition) — Strictly optional; built-in `Category Header` & `Wallpaper Spacer` widgets run standalone.
 
-## Features (`v1.0.0`)
+## Features (`v1.1.0`)
+
+- **Tall Device-Realistic Phone Previews & Unified Viewer Controls**:
+  - `MiniPhoneGridPreview` renders at realistic tall phone-screen proportions (`0.54` aspect ratio with simulated One UI status bar & dock strip) over a neutral dark canvas.
+  - Redesigned **Viewer & Backdrop** control bar with a single 1-tap sliding `Vertical ↔ Horiz.` toggle pill, a Material 3 `Switch` for Wallpaper Backdrop, live wallpaper swatch, and tinted `Change` picker button.
 
 - **Interactive 4-Step Guided Studio**:
   - Collapsible guided steps (**1. Starter Collection / Strategy**, **2. Grid & Capacity Rules**, **3. Layout Viewer, Wallpaper & Pages Builder**, **4. Save Draft, Apply / Mark Applied & Export JSON**) with live `✓` completion badges, summary subtitles, and a top **Expand All / Collapse All** control.
