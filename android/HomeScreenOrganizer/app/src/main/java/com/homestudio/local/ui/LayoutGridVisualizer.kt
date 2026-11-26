@@ -12,15 +12,19 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -30,10 +34,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -60,7 +65,6 @@ import com.homestudio.local.data.StudioPage
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LayoutViewerControlBar(
     orientation: String,
@@ -68,48 +72,240 @@ fun LayoutViewerControlBar(
     onChangeOrientation: (String) -> Unit,
     onToggleWallpaper: (Boolean) -> Unit,
     onOpenWallpaperPicker: () -> Unit,
+    wallpaperBitmap: Bitmap? = null,
     tutorialRegistry: TutorialTargetRegistry? = null,
 ) {
     val p = LocalStudioPalette.current
+    val isHorizontal = orientation == "horizontal"
+    val previewThumb: ImageBitmap? = remember(wallpaperBitmap) {
+        wallpaperBitmap?.asImageBitmap()
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .tutorialTarget(tutorialRegistry, "viewer_controls")
             .animateContentSize(),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = p.card),
         border = BorderStroke(1.dp, p.border),
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = "Viewer Style & Wallpaper",
-                style = MaterialTheme.typography.labelLarge,
-                color = p.textPrimary,
-            )
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                FilterChip(
-                    selected = orientation != "horizontal",
-                    onClick = { onChangeOrientation("vertical") },
-                    label = { Text("Vertical Stack") },
+                Text(
+                    text = "Viewer & Backdrop",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = p.textPrimary,
                 )
-                FilterChip(
-                    selected = orientation == "horizontal",
-                    onClick = { onChangeOrientation("horizontal") },
-                    label = { Text("Horizontal Pages") },
-                )
-                FilterChip(
-                    selected = showWallpaper,
-                    onClick = { onToggleWallpaper(!showWallpaper) },
-                    label = { Text(if (showWallpaper) "Wallpaper: On" else "Wallpaper: Off") },
-                )
-                OutlinedButton(onClick = onOpenWallpaperPicker) {
-                    Text("Choose Wallpaper")
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = if (showWallpaper) p.positiveSurface else p.secondarySoft,
+                ) {
+                    Text(
+                        text = "${if (isHorizontal) "Horizontal" else "Vertical"} • ${if (showWallpaper) "Wallpaper On" else "Clean Dark"}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (showWallpaper) p.positiveText else p.secondaryAccent,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
+                    )
                 }
+            }
+
+            // Single unified 1-tap Orientation Toggle Pill (Vertical <-> Horizontal)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(p.accentSoft),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = if (isHorizontal) "⇄" else "⇅",
+                        color = p.accent,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "View Mode",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = p.textPrimary,
+                        maxLines = 1,
+                    )
+                    Text(
+                        text = if (isHorizontal) "Horizontal deck" else "Vertical stack",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = p.textMuted,
+                        maxLines = 1,
+                    )
+                }
+                SlidingOrientationTogglePill(
+                    isHorizontal = isHorizontal,
+                    onToggle = {
+                        onChangeOrientation(if (isHorizontal) "vertical" else "horizontal")
+                    },
+                )
+            }
+
+            HorizontalDivider(color = p.border.copy(alpha = 0.55f))
+
+            // Wallpaper On/Off Switch + Live Swatch + Change Picker Pill
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFF101318))
+                        .border(
+                            width = 1.dp,
+                            color = if (showWallpaper) p.accent.copy(alpha = 0.7f) else p.border,
+                            shape = RoundedCornerShape(10.dp),
+                        )
+                        .clickable { onOpenWallpaperPicker() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (showWallpaper && previewThumb != null) {
+                        Image(
+                            bitmap = previewThumb,
+                            contentDescription = "Wallpaper swatch",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        Text(
+                            text = if (showWallpaper) "◐" else "○",
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 14.sp,
+                        )
+                    }
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Wallpaper",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = p.textPrimary,
+                        maxLines = 1,
+                    )
+                    Text(
+                        text = if (showWallpaper) "Visible in preview" else "Clean dark canvas",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (showWallpaper) p.positiveText else p.textMuted,
+                        maxLines = 1,
+                    )
+                }
+                Surface(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .clickable(onClick = onOpenWallpaperPicker),
+                    shape = RoundedCornerShape(999.dp),
+                    color = p.secondarySoft,
+                    border = BorderStroke(1.dp, p.border),
+                ) {
+                    Text(
+                        text = "Change",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = p.secondaryAccent,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+                    )
+                }
+                Switch(
+                    checked = showWallpaper,
+                    onCheckedChange = onToggleWallpaper,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = p.onAccent,
+                        checkedTrackColor = p.accent,
+                        uncheckedThumbColor = p.textSecondary,
+                        uncheckedTrackColor = p.cardElevated,
+                        uncheckedBorderColor = p.border,
+                    ),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SlidingOrientationTogglePill(
+    isHorizontal: Boolean,
+    onToggle: () -> Unit,
+) {
+    val p = LocalStudioPalette.current
+    val pillWidth = 136.dp
+    val pillHeight = 36.dp
+    val thumbOffset by animateDpAsState(
+        targetValue = if (isHorizontal) 67.dp else 3.dp,
+        animationSpec = spring(dampingRatio = 0.78f, stiffness = 420f),
+        label = "orientationThumb",
+    )
+
+    Box(
+        modifier = Modifier
+            .width(pillWidth)
+            .height(pillHeight)
+            .clip(RoundedCornerShape(999.dp))
+            .background(p.cardElevated)
+            .border(1.dp, p.border, RoundedCornerShape(999.dp))
+            .clickable(onClick = onToggle),
+    ) {
+        Box(
+            modifier = Modifier
+                .offset(x = thumbOffset, y = 3.dp)
+                .width(66.dp)
+                .height(30.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(p.accent),
+        )
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "Vertical",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = if (!isHorizontal) FontWeight.Bold else FontWeight.Medium,
+                    color = if (!isHorizontal) p.onAccent else p.textSecondary,
+                    maxLines = 1,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "Horiz.",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = if (isHorizontal) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isHorizontal) p.onAccent else p.textSecondary,
+                    maxLines = 1,
+                )
             }
         }
     }
@@ -218,9 +414,9 @@ fun MiniPhoneGridPreview(
     config: HomeStudioConfig,
     wallpaperBitmap: Bitmap? = null,
     showWallpaper: Boolean = true,
+    tallPhoneAspect: Boolean = true,
     onFolderClick: ((LayoutSlotItem) -> Unit)? = null,
 ) {
-    val p = LocalStudioPalette.current
     val rows = config.preferences.gridRows
     val cols = config.preferences.gridColumns
     val alignment = page.header.alignmentOverride ?: config.globalTheme.alignment
@@ -230,13 +426,22 @@ fun MiniPhoneGridPreview(
 
     // Simulated Home Screen canvas intentionally stays neutral dark charcoal so layout icons,
     // folders, widgets, and wallpaper remain vibrant and distinct regardless of app chrome theme.
-    Box(
-        modifier = Modifier
+    val frameModifier = if (tallPhoneAspect) {
+        Modifier
+            .fillMaxWidth()
+            .aspectRatio(0.54f)
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color(0xFF101318))
+            .border(1.5.dp, Color(0xFF2B313D), RoundedCornerShape(24.dp))
+    } else {
+        Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
             .background(Color(0xFF101318))
-            .border(1.dp, Color(0xFF2B313D), RoundedCornerShape(18.dp)),
-    ) {
+            .border(1.dp, Color(0xFF2B313D), RoundedCornerShape(18.dp))
+    }
+
+    Box(modifier = frameModifier) {
         if (imageBitmap != null) {
             Image(
                 bitmap = imageBitmap,
@@ -252,8 +457,8 @@ fun MiniPhoneGridPreview(
                         Brush.verticalGradient(
                             colors = listOf(
                                 Color.Black.copy(alpha = 0.24f),
-                                Color.Black.copy(alpha = 0.10f),
-                                Color.Black.copy(alpha = 0.34f),
+                                Color.Black.copy(alpha = 0.08f),
+                                Color.Black.copy(alpha = 0.36f),
                             ),
                         ),
                     ),
@@ -261,46 +466,105 @@ fun MiniPhoneGridPreview(
         }
 
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
+            modifier = if (tallPhoneAspect) {
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            } else {
+                Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp)
+            },
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            for (r in 0 until rows) {
-                if (page.header.enabled && !page.isWallpaperPage && page.header.row == r) {
+            if (tallPhoneAspect) {
+                // Subtle simulated Samsung One UI status bar + punch-hole camera dot
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 2.dp),
+                ) {
+                    Text(
+                        text = "9:41",
+                        color = Color.White.copy(alpha = 0.55f),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.align(Alignment.CenterStart),
+                    )
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(34.dp)
-                            .background(
-                                Color.Black.copy(alpha = if (imageBitmap != null) 0.14f else 0f),
-                                RoundedCornerShape(8.dp),
-                            )
-                            .border(
-                                1.dp,
-                                Color.White.copy(alpha = if (imageBitmap != null) 0.22f else 0.20f),
-                                RoundedCornerShape(8.dp),
-                            )
-                            .padding(horizontal = 8.dp),
-                        contentAlignment = when (alignment) {
-                            "center" -> Alignment.Center
-                            "end" -> Alignment.CenterEnd
-                            else -> Alignment.CenterStart
-                        },
+                            .size(7.dp)
+                            .align(Alignment.Center)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.72f))
+                            .border(0.75.dp, Color.White.copy(alpha = 0.22f), CircleShape),
+                    )
+                    Row(
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = page.title,
-                            color = Color.White.copy(alpha = config.globalTheme.opacity),
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Light,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                        Box(
+                            modifier = Modifier
+                                .size(width = 10.dp, height = 5.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(Color.White.copy(alpha = 0.45f)),
                         )
+                    }
+                }
+            }
+
+            for (r in 0 until rows) {
+                val rowModifier = if (tallPhoneAspect) {
+                    Modifier.fillMaxWidth().weight(1f)
+                } else {
+                    Modifier.fillMaxWidth()
+                }
+                if (page.header.enabled && !page.isWallpaperPage && page.header.row == r) {
+                    Box(
+                        modifier = rowModifier,
+                        contentAlignment = Alignment.BottomStart,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(if (tallPhoneAspect) 40.dp else 34.dp)
+                                .background(
+                                    Color.Black.copy(alpha = if (imageBitmap != null) 0.14f else 0f),
+                                    RoundedCornerShape(8.dp),
+                                )
+                                .border(
+                                    1.dp,
+                                    Color.White.copy(alpha = 0.22f),
+                                    RoundedCornerShape(8.dp),
+                                )
+                                .padding(horizontal = 8.dp),
+                            contentAlignment = when (alignment) {
+                                "center" -> Alignment.Center
+                                "end" -> Alignment.CenterEnd
+                                else -> Alignment.CenterStart
+                            },
+                        ) {
+                            Text(
+                                text = page.title,
+                                color = Color.White.copy(alpha = config.globalTheme.opacity),
+                                fontSize = if (tallPhoneAspect) 16.sp else 15.sp,
+                                fontWeight = FontWeight.Light,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 } else {
                     val rowItems = page.items.filter { it.row == r }
                     if (rowItems.isEmpty()) {
-                        Box(modifier = Modifier.fillMaxWidth().height(if (page.isWallpaperPage && r == 3) 44.dp else 18.dp)) {
+                        Box(
+                            modifier = if (tallPhoneAspect) {
+                                rowModifier
+                            } else {
+                                Modifier.fillMaxWidth().height(if (page.isWallpaperPage && r == 3) 44.dp else 18.dp)
+                            },
+                        ) {
                             if (page.isWallpaperPage && r == 3) {
                                 Surface(
                                     modifier = Modifier.align(Alignment.Center),
@@ -319,8 +583,9 @@ fun MiniPhoneGridPreview(
                         }
                     } else {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = rowModifier,
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             for (c in 0 until cols) {
                                 val item = rowItems.firstOrNull { it.column == c }
@@ -373,6 +638,45 @@ fun MiniPhoneGridPreview(
                             }
                         }
                     }
+                }
+            }
+
+            if (tallPhoneAspect) {
+                // Subtle simulated One UI dock & gesture pill at screen bottom
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.76f)
+                            .height(28.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.10f))
+                            .border(0.75.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            repeat(4) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(14.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color.White.copy(alpha = 0.24f)),
+                                )
+                            }
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .width(44.dp)
+                            .height(3.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.35f)),
+                    )
                 }
             }
         }

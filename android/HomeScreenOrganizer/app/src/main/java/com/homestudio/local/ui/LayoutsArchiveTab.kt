@@ -454,6 +454,7 @@ private fun ArchiveSnapshotPreviewDialog(
                                         config = entry.config,
                                         wallpaperBitmap = wallpaperBitmap,
                                         showWallpaper = entry.config.preferences.showWallpaperInPreview,
+                                        tallPhoneAspect = false,
                                     )
                                 }
                             }

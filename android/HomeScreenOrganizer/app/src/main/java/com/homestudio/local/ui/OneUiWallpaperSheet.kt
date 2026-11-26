@@ -143,6 +143,7 @@ fun OneUiWallpaperSheet(
                     config = config,
                     wallpaperBitmap = effectivePreview,
                     showWallpaper = true,
+                    tallPhoneAspect = false,
                 )
 
                 Text(

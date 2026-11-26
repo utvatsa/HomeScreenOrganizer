@@ -470,6 +470,7 @@ fun LayoutsStudioTab(
                 onOpenWallpaperPicker = {
                     onOpenWallpaperPicker(sortedPages.firstOrNull { it.isDefaultHome } ?: sortedPages.firstOrNull())
                 },
+                wallpaperBitmap = wallpaperBitmap,
                 tutorialRegistry = tutorialRegistry,
             )
 
